@@ -11,7 +11,6 @@ import {
   startSpeakerTest,
   startMicTest,
   startCameraTest,
-  initVibrateCard,
   startVibrateTest,
   startMotionTest,
   startBenchmark,
@@ -382,7 +381,6 @@ document.addEventListener('click', (ev) => {
 onSession(() => refreshChips());
 
 initInfoDashboard();
-initVibrateCard();
 initLocation();
 refreshChips();
 setupAiAnalysis();

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { 
+  Globe,
   Battery, 
   Wifi, 
   Smartphone, 
@@ -13,14 +14,15 @@ import {
   Camera, 
   Layers, 
   Gauge, 
-  Globe 
+  Clock 
 } from 'lucide-react';
 
 const specs = [
+  { id: 'ipnet', icon: 'Globe', title: 'IP Publik & Operator ISP', desc: 'Alamat IP publik, ISP Provider, ASN, Organisasi, dan Lokasi Edge Server.' },
   { id: 'battery', icon: 'Battery', title: 'Baterai & Daya', desc: 'Status pengisian dan level persentase baterai real-time.' },
   { id: 'connection', icon: 'Wifi', title: 'Koneksi & Sinyal', desc: 'Status online, tipe jaringan (4G/5G/WiFi), downlink Mbps & RTT latency.' },
   { id: 'device', icon: 'Smartphone', title: 'Perangkat & CPU', desc: 'Arsitektur platform, jumlah CPU cores, RAM terdeteksi, dan touch points.' },
-  { id: 'screen', icon: 'Monitor', title: 'Layar & Resolusi', desc: 'Resolusi fisik, Device Pixel Ratio (DPR), orientasi, dan preferensi tema OS.' },
+  { id: 'screen', icon: 'Monitor', title: 'Layar & Resolusi', desc: 'Resolusi fisik aktual, DPR scale, orientasi, dan preferensi tema OS.' },
   { id: 'gpu', icon: 'Cpu', title: 'GPU & Chipset', desc: 'Renderer kartu grafis dan vendor hardware via WebGL unmasked info.' },
   { id: 'storage', icon: 'Database', title: 'Penyimpanan (Origin)', desc: 'Alokasi kuota storage browser & pemakaian data lokal situs.' },
   { id: 'displayx', icon: 'Sparkles', title: 'Kualitas Display', desc: 'Pengukuran live refresh rate (Hz), color gamut P3, dan dukungan HDR.' },
@@ -29,21 +31,21 @@ const specs = [
   { id: 'mediadev', icon: 'Camera', title: 'Kamera & Audio', desc: 'Jumlah sensor kamera (depan/belakang) dan mikrofon fisik terdeteksi.' },
   { id: 'platform', icon: 'Layers', title: 'Platform & Web APIs', desc: 'PWA standalone, WebGL 2.0, WebGPU, WebAssembly, dan Secure Context.' },
   { id: 'memory', icon: 'Gauge', title: 'Memori JS Heap', desc: 'Pemakaian alokasi memori heap JavaScript engine (Chromium only).' },
-  { id: 'locale', icon: 'Globe', title: 'Waktu & Locale', desc: 'Zona waktu sistem, bahasa browser, format tanggal, dan offset UTC.' },
+  { id: 'locale', icon: 'Clock', title: 'Waktu & Locale', desc: 'Zona waktu sistem, bahasa browser, format tanggal, dan offset UTC.' },
 ];
 ---
 
-<BaseLayout title="Spesifikasi Perangkat · Device Doctor" description="Inspeksi mendalam spesifikasi hardware dan Web APIs browser perangkat kamu.">
+<BaseLayout title="Spesifikasi Perangkat · Device Doctor" description="Inspeksi mendalam spesifikasi hardware, jaringan IP/ISP, dan Web APIs browser perangkat kamu.">
   <div class="flex flex-col gap-4">
     <!-- Header Banner -->
     <div class="dd-card p-4 bg-card flex flex-col gap-2 relative overflow-hidden" data-accent="neutral">
       <div class="flex items-center justify-between">
         <div>
-          <h2 class="font-heading text-xl font-extrabold">Spesifikasi Hardware</h2>
-          <p class="text-xs text-muted-foreground mt-0.5">Data teknis dibaca langsung dari Web APIs browser tanpa instalasi.</p>
+          <h2 class="font-heading text-xl font-extrabold">Spesifikasi Lengkap Perangkat</h2>
+          <p class="text-xs text-muted-foreground mt-0.5">14 Modul Hardware, Jaringan IP/ISP & Web APIs dibaca secara akurat.</p>
         </div>
         <span class="dd-btn bg-main px-2.5 py-1 text-xs font-bold font-data">
-          13 Modul
+          14 Modul
         </span>
       </div>
     </div>
@@ -61,6 +63,7 @@ const specs = [
             <div class="flex items-center justify-between border-b-2 border-border/40 pb-2">
               <div class="flex items-center gap-2">
                 <div class="p-1.5 rounded-base bg-secondary-background border-2 border-border">
+                  {item.icon === 'Globe' && <Globe className="w-4 h-4 text-primary" />}
                   {item.icon === 'Battery' && <Battery className="w-4 h-4 text-primary" />}
                   {item.icon === 'Wifi' && <Wifi className="w-4 h-4 text-primary" />}
                   {item.icon === 'Smartphone' && <Smartphone className="w-4 h-4 text-primary" />}
@@ -73,7 +76,7 @@ const specs = [
                   {item.icon === 'Camera' && <Camera className="w-4 h-4 text-primary" />}
                   {item.icon === 'Layers' && <Layers className="w-4 h-4 text-primary" />}
                   {item.icon === 'Gauge' && <Gauge className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Globe' && <Globe className="w-4 h-4 text-primary" />}
+                  {item.icon === 'Clock' && <Clock className="w-4 h-4 text-primary" />}
                 </div>
                 <h3 class="font-heading text-sm font-bold tracking-tight">{item.title}</h3>
               </div>
@@ -104,7 +107,6 @@ const specs = [
   <script>
     import { initInfoDashboard } from '@/lib/diagnostics/info';
 
-    // Berjalan saat inisialisasi awal maupun saat navigasi SPA (astro:page-load)
     document.addEventListener('astro:page-load', () => {
       initInfoDashboard();
     });

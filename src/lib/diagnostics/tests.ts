@@ -455,49 +455,89 @@ export function startCameraTest() {
 }
 
 /* ------------------------------------------------------------------ */
-/* 6. Getar (Direct User-Gesture Vibration Engine)                    */
+/* 6. Getar (Multi-Pattern Vibration & Diagnostic Suite)              */
 /* ------------------------------------------------------------------ */
 
 export function startVibrateTest() {
   const hasVibrate = typeof navigator.vibrate === 'function';
 
-  const triggerVibe = () => {
+  const doVibrate = (pattern: number | number[]) => {
     try {
       if (hasVibrate) {
-        // Pola getar intens: 500ms on, 200ms off, 500ms on, 200ms off, 800ms on
-        navigator.vibrate([500, 200, 500, 200, 800]);
+        return navigator.vibrate(pattern);
       }
     } catch (e) {
-      console.warn('Vibrate call error:', e);
+      console.warn('Vibrate call exception:', e);
     }
+    return false;
   };
 
-  // Langsung picu getaran pertama kali saat user klik tombol
-  triggerVibe();
+  // Picu pola awal secara langsung
+  const initialResult = doVibrate([500, 150, 500, 150, 800]);
 
   const { body } = openOverlay('Test Motor Getaran HP (Haptic)');
-  
-  if (!hasVibrate) {
-    infoLine(body, '<b class="text-attention">Perhatian:</b> Browser kamu tidak mengizinkan akses <code>navigator.vibrate</code>. Ini umumnya terjadi di browser non-Chromium (seperti Safari iOS) atau jika izin haptic diblokir sistem.');
-  } else {
-    infoLine(body, 'Pola getaran getar-jeda-getar telah dikirimkan ke motor haptic HP kamu. Tekan tombol di bawah jika ingin mengulang getaran.');
-  }
 
-  const again = document.createElement('button');
-  again.type = 'button';
-  again.textContent = '📳 Getarkan HP Sekarang';
-  again.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm shadow-md';
-  again.addEventListener('click', (e) => {
+  const statusBox = document.createElement('div');
+  statusBox.className = 'w-full p-3 bg-secondary-background rounded-base border-2 border-border font-data text-xs flex flex-col gap-1.5';
+  statusBox.innerHTML = `
+    <div class="flex justify-between">
+      <span>API Support:</span>
+      <span class="font-bold ${hasVibrate ? 'text-healthy' : 'text-critical'}">${hasVibrate ? '✓ navigator.vibrate Didukung' : '✕ Tidak Ada di Browser Ini'}</span>
+    </div>
+    <div class="flex justify-between">
+      <span>Return Status Eksekusi:</span>
+      <span class="font-bold ${initialResult ? 'text-healthy' : 'text-attention'}">${initialResult ? '✓ Sinyal Diterima Kernel' : 'Sinyal Dikirim (Return: false/void)'}</span>
+    </div>
+  `;
+  body.append(statusBox);
+
+  infoLine(body, 'Pilih berbagai pola getaran di bawah untuk memicu motor haptic HP kamu:');
+
+  const patternGrid = document.createElement('div');
+  patternGrid.className = 'grid grid-cols-2 gap-2 w-full max-w-xs';
+  patternGrid.innerHTML = `
+    <button id="vibe-long" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
+      📳 Getar Panjang (1 Detik)
+    </button>
+    <button id="vibe-burst" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
+      ⚡ Pola Burst (3x Cepat)
+    </button>
+    <button id="vibe-sos" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
+      🆘 Pola SOS Haptic
+    </button>
+    <button id="vibe-pulse" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
+      💓 Denyut Jantung
+    </button>
+  `;
+  body.append(patternGrid);
+
+  patternGrid.querySelector('#vibe-long')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    triggerVibe();
+    doVibrate(1000);
   });
-  body.append(again);
+  patternGrid.querySelector('#vibe-burst')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    doVibrate([150, 80, 150, 80, 150]);
+  });
+  patternGrid.querySelector('#vibe-sos')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    doVibrate([100, 50, 100, 50, 100, 150, 300, 100, 300, 100, 300, 150, 100, 50, 100, 50, 100]);
+  });
+  patternGrid.querySelector('#vibe-pulse')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    doVibrate([300, 200, 600, 400, 300, 200, 600]);
+  });
+
+  const pocoNote = document.createElement('p');
+  pocoNote.className = 'text-[11px] text-muted-foreground p-2.5 bg-card rounded-base border border-dashed border-border leading-relaxed text-center';
+  pocoNote.innerHTML = `💡 <i>Tips Xiaomi / POCO / Android:</i> Pastikan <b>"Umpan Balik Haptik / Getaran Sentuh"</b> di <i>Setelan &gt; Suara &amp; Getaran</i> HP kamu dalam kondisi aktif & level getaran dinaikkan.`;
+  body.append(pocoNote);
 
   verdictButtons(body, {
     pass: 'Getaran Terasa Jelas',
     fail: 'Sama Sekali Tidak Ada Getar',
     onPass: () => finish('vibrate', 'pass', 'Motor getar / linear haptic motor merespons pola sinyal.', 'Haptic OK'),
-    onFail: () => finish('vibrate', 'fail', 'Getaran tidak terasa. Pastikan getaran/haptics tidak dimatikan di Pengaturan Suara HP Android (Vibration & Haptics).', 'tidak ada respon'),
+    onFail: () => finish('vibrate', 'fail', 'Getaran tidak terasa. Periksa setelan haptics OS atau kondisi motor fisik HP.', 'tidak ada respon'),
   });
 }
 

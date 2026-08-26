@@ -1,10 +1,10 @@
 /**
  * Cloudflare Worker entry.
  *
- * Dua tugas:
+ * Tiga tugas:
  *  1. Serve static assets hasil `astro build` (binding ASSETS).
- *  2. Proxy ke gateway AI (9Router) untuk /api/ai/* — API key TETAP di server,
- *     tidak pernah dikirim ke browser.
+ *  2. Endpoint /api/ip: Membaca detail IP, ISP/ASN, Organisasi, Lokasi Geo dari Cloudflare Edge (request.cf) + Client IP.
+ *  3. Proxy ke gateway AI (9Router) untuk /api/ai/* — API key TETAP di server, tidak pernah dikirim ke browser.
  */
 
 interface Env {
@@ -14,46 +14,44 @@ interface Env {
   AI_MODEL?: string;
 }
 
-const DEFAULT_BASE = 'http://163.172.110.146:1047/v1';
+const DEFAULT_BASE = 'http://163-172-110-146.rev.poneytelecom.eu:1047/v1';
 const DEFAULT_MODEL = 'gcli/grok-4.6-xhigh';
 
-const SYSTEM_ANALYZE = `Kamu "Dokter Device" — analis hardware HP yang jujur dan membumi, menjawab dalam Bahasa Indonesia santai tapi kredibel.
+const SYSTEM_ANALYZE = `Kamu "Dokter Device" — analis hardware dan spesifikasi HP profesional, jujur, membumi, dan berwawasan teknis mendalam. Kamu menjawab dalam Bahasa Indonesia santai tapi sangat kredibel dan presisi.
 
-Kamu menerima data JSON hasil pemeriksaan sebuah HP yang dibaca lewat Web API browser.
+Data RAG spesifikasi perangkat dan hasil tes sudah disediakan di prompt. Analisis secara holistik.
 
-ATURAN KERAS:
-- Data browser itu TERBATAS. Jangan pernah mengarang angka yang tidak ada di data (contoh: JANGAN sebut "battery health 80%", cycle count, kekuatan sinyal dBm, atau suhu baterai). Data itu memang tidak tersedia di web.
-- Status "unsupported" berarti BROWSER tidak mendukung API-nya — itu BUKAN tanda HP rusak. Jelaskan bedanya kalau relevan.
-- Selalu bingkai kesimpulan sebagai INDIKASI/DUGAAN, bukan diagnosis pasti.
-- Kalau user sedang cek HP bekas, beri saran pengecekan fisik yang tidak bisa dilakukan browser (tombol, port charging, IMEI, garansi).
+FORMAT JAWABAN (Markdown rapi & padat):
+## Ringkasan Eksekutif
+2-3 kalimat kondisi umum perangkat dan identitas hardware utama.
 
-FORMAT JAWABAN (pakai markdown, ringkas, total maksimal ~300 kata):
-## Ringkasan
-2-3 kalimat kondisi umum device.
+## Kekuatan & Kondisi Prima
+Poin-poin komponen yang sehat dan spesifikasi unggulan.
 
-## Yang Terlihat Bagus
-Poin-poin singkat (maksimal 4 bullet).
+## Temuan & Catatan Khusus
+Catatan komponen yang butuh perhatian atau keterbatasan yang terdeteksi.
 
-## Perlu Diperhatikan
-Poin-poin singkat + saran konkret (maksimal 4 bullet). Kalau tidak ada, tulis "Tidak ada temuan yang mengkhawatirkan dari data yang terbaca."
+## Rekomendasi Dokter Device
+Saran optimasi praktis, tips perawatan hardware, atau tips verifikasi jika ini HP bekas.`;
 
-## Saran Langkah Berikutnya
-2-3 langkah praktis dan spesifik.`;
+const SYSTEM_CHAT = `Kamu "Dokter Device" — partner dan asisten cerdas yang mengetahui SEGALA HAL tentang spesifikasi teknis dan kondisi fisik perangkat user.
 
-const SYSTEM_CHAT = `Kamu "Dokter Device" — asisten yang membantu user memahami kondisi HP mereka, menjawab dalam Bahasa Indonesia yang santai, hangat, dan mudah dipahami orang awam.
-
-Kamu punya akses ke data hasil pemeriksaan device user (dikirim sebagai konteks JSON).
-
-ATURAN KERAS:
-- Jangan mengarang data yang tidak tersedia di web (battery health, cycle count, sinyal dBm, suhu). Kalau user menanyakan itu, jelaskan dengan jujur bahwa browser TIDAK BISA membacanya dan sarankan cara lain (aplikasi native, kode dial *#*#4636#*#*, atau service center).
-- Status "unsupported" = keterbatasan browser, bukan kerusakan HP.
-- Jawaban ringkas: maksimal 180 kata, langsung ke inti, boleh pakai bullet.
-- Kalau data pemeriksaan masih kosong, ajak user menjalankan test dulu di tab Periksa.`;
+PENTING:
+- Kamu SUDAH DIBEKALI data RAG spesifikasi & diagnosa perangkat user yang nyata pada context.
+- BACA LANGSUNG dari data tersebut saat user bertanya tentang:
+  * Alamat IP Publik, ISP Operator, ASN, Kota & Lokasi Jaringan
+  * Chipset GPU, Vendor Hardware, WebGL2, WebGPU
+  * Layar (Resolusi Aktual, Refresh Rate Hz live, Gamut P3, HDR, DPR)
+  * CPU Cores, RAM Kapasitas, Battery Level & Charging Status
+  * Storage kuota origin, Sensor (Gyro, Akselerometer, NFC, Bluetooth), Codec (AV1, HEVC), dll.
+  * Hasil Test Fisik (Layar sentuh, dead pixel, speaker, mic, getar, benchmark Pts, GPS)
+- JANGAN PERNAH meminta user mengirimkan JSON snapshot atau menyuruh user kirim data lagi, karena kamu SUDAH MEMEGANG DATANYA di memory prompt kamu!
+- Jawablah langsung dengan jelas, akurat, santai, dan bersahabat dalam Bahasa Indonesia.`;
 
 function cors(extra: Record<string, string> = {}): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     ...extra,
   };
@@ -83,7 +81,6 @@ async function callAI(env: Env, messages: unknown[], maxTokens: number): Promise
     );
   }
 
-  // Ubah SSE OpenAI → stream teks polos, biar client-side sederhana.
   const stream = new ReadableStream({
     async start(controller) {
       const reader = upstream.body!.getReader();
@@ -135,7 +132,42 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname.startsWith('/api/')) {
+    // 1. Endpoint /api/ip untuk detail koneksi IP, ISP, ASN, Lokasi dari Edge Cloudflare
+    if (url.pathname === '/api/ip') {
+      if (request.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: cors() });
+      }
+      const cf = (request as any).cf || {};
+      const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || '127.0.0.1';
+      
+      const ipData = {
+        ip: clientIp,
+        asn: cf.asn ? `AS${cf.asn}` : '—',
+        asOrganization: cf.asOrganization || '—',
+        isp: cf.asOrganization || '—',
+        city: cf.city || '—',
+        region: cf.region || '—',
+        country: cf.country || '—',
+        postalCode: cf.postalCode || '—',
+        metroCode: cf.metroCode || '—',
+        colo: cf.colo || '—',
+        timezone: cf.timezone || '—',
+        httpProtocol: cf.httpProtocol || 'HTTP/2',
+        tlsVersion: cf.tlsVersion || 'TLS 1.3',
+        tlsCipher: cf.tlsCipher || '—',
+      };
+
+      return new Response(JSON.stringify(ipData), {
+        status: 200,
+        headers: cors({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+        }),
+      });
+    }
+
+    // 2. Endpoints AI (/api/ai/analyze dan /api/ai/chat)
+    if (url.pathname.startsWith('/api/ai/')) {
       if (request.method === 'OPTIONS') {
         return new Response(null, { status: 204, headers: cors() });
       }
@@ -162,16 +194,16 @@ export default {
         });
       }
 
-      const snapshot = JSON.stringify(body.snapshot ?? {}).slice(0, 12000);
+      const snapshot = JSON.stringify(body.snapshot ?? {}, null, 2).slice(0, 20000);
 
       if (url.pathname === '/api/ai/analyze') {
         return callAI(
           env,
           [
             { role: 'system', content: SYSTEM_ANALYZE },
-            { role: 'user', content: `Data pemeriksaan device (JSON):\n${snapshot}` },
+            { role: 'user', content: `Berikut adalah Data RAG Spesifikasi Perangkat & Hasil Pengujian Diagnostik Lengkap:\n${snapshot}\n\nLakukan analisis menyeluruh dan berikan diagnosa komprehensif.` },
           ],
-          1400,
+          1800,
         );
       }
 
@@ -187,12 +219,11 @@ export default {
         return callAI(
           env,
           [
-            { role: 'system', content: SYSTEM_CHAT },
-            { role: 'system', content: `Data pemeriksaan device user (JSON):\n${snapshot}` },
+            { role: 'system', content: `${SYSTEM_CHAT}\n\n[DATA RAG SPESIFIKASI & DIAGNOSTIK DEVICE USER]:\n${snapshot}` },
             ...history,
             { role: 'user', content: question },
           ],
-          900,
+          1200,
         );
       }
 

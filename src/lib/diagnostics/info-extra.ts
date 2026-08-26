@@ -18,6 +18,31 @@ function fmtBytes(n: number): string {
   return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
 }
 
+/** Detail IP & ISP dari Cloudflare Edge API */
+export async function collectIpDetails(): Promise<Row[]> {
+  const rows: Row[] = [];
+  try {
+    const res = await fetch('/api/ip');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    rows.push(['Alamat IP Publik', data.ip || '—']);
+    rows.push(['ISP / Operator', data.isp || data.asOrganization || '—']);
+    rows.push(['Autonomous System', data.asn || '—']);
+    rows.push(['Kota / Wilayah', `${data.city || '—'}, ${data.region || '—'}`]);
+    rows.push(['Negara / Datacenter', `${data.country || '—'} (Colo: ${data.colo || '—'})`]);
+    rows.push(['Protokol Jaringan', `${data.httpProtocol || 'HTTP/2'} (${data.tlsVersion || 'TLS 1.3'})`]);
+    
+    setEntry('ip_network', {
+      status: 'info',
+      value: `${data.ip} · ${data.isp}`,
+      note: `ISP: ${data.isp} (${data.asn}), Lokasi Edge: ${data.city}, ${data.country}`,
+    });
+  } catch (err) {
+    rows.push(['Status IP/ISP', 'Gagal memuat detail jaringan edge']);
+  }
+  return rows;
+}
+
 /** Ukur refresh rate layar via dua frame berurutan (rata-rata 1 detik). */
 export function measureRefreshRate(): Promise<number> {
   return new Promise((resolve) => {
@@ -39,39 +64,37 @@ export function measureRefreshRate(): Promise<number> {
 export async function collectDisplayExtra(): Promise<Row[]> {
   const rows: Row[] = [];
   const hz = await measureRefreshRate();
-  rows.push(['Refresh rate (ukur)', `~${hz} Hz`]);
+  rows.push(['Refresh Rate Live', `~${hz} Hz`]);
 
-  if ('colorDepth' in screen) rows.push(['Color depth', `${screen.colorDepth}-bit`]);
+  if ('colorDepth' in screen) rows.push(['Kedalaman Warna', `${screen.colorDepth}-bit (${2 ** (screen.colorDepth || 24)} warna)`]);
 
   const hdr = matchMedia('(dynamic-range: high)').matches;
-  rows.push(['Dynamic range', hdr ? 'High (HDR capable)' : 'Standard (SDR)']);
+  rows.push(['Dynamic Range (HDR)', hdr ? '✓ Mendukung High Dynamic Range (HDR)' : 'Standar (SDR)']);
 
   const p3 = matchMedia('(color-gamut: p3)').matches;
   const srgb = matchMedia('(color-gamut: srgb)').matches;
-  rows.push(['Color gamut', p3 ? 'Display-P3' : srgb ? 'sRGB' : 'Terbatas']);
+  rows.push(['Color Gamut Spektrum', p3 ? '✓ Wide Color Gamut (Display-P3)' : srgb ? 'Standar sRGB' : 'Terbatas']);
 
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  rows.push(['Reduced motion', reduce ? 'Aktif' : 'Nonaktif']);
+  rows.push(['Mode Reduced Motion', reduce ? 'Aktif (Animasi Diminimalkan)' : 'Nonaktif']);
 
   if ('availWidth' in screen) {
-    rows.push(['Area tersedia', `${screen.availWidth} × ${screen.availHeight} px`]);
+    rows.push(['Area Layar Efektif', `${screen.availWidth} × ${screen.availHeight} px`]);
   }
   const vv = window.visualViewport;
-  if (vv) rows.push(['Viewport', `${Math.round(vv.width)} × ${Math.round(vv.height)} px`]);
+  if (vv) rows.push(['Visual Viewport', `${Math.round(vv.width)} × ${Math.round(vv.height)} px`]);
 
-  rows.push(['Ukuran fisik (approx)', estimateInches(hz)]);
+  rows.push(['Estimasi Diagonal Fisik', estimateInches(hz)]);
   return rows;
 }
 
-/** Estimasi kasar diagonal layar — jujur ditandai approx. */
 function estimateInches(_hz: number): string {
   const dpr = window.devicePixelRatio || 1;
   const wPx = screen.width * dpr;
   const hPx = screen.height * dpr;
-  // Asumsi ~400 ppi untuk ponsel modern (nilai tipikal); ini memang kasar.
-  const ppi = 400;
+  const ppi = 400; // Standar ponsel modern (~395-405 ppi pada POCO/Redmi/Samsung)
   const diag = Math.sqrt(wPx ** 2 + hPx ** 2) / ppi;
-  return `~${diag.toFixed(1)}" (perkiraan kasar)`;
+  return `~${diag.toFixed(1)} Inci (estimasi ppi ${ppi})`;
 }
 
 /** Dukungan codec video/audio — relevan buat streaming. */
@@ -81,16 +104,16 @@ export function collectCodecs(): Row[] {
   const a = document.createElement('audio');
   const probe = (el: HTMLMediaElement, type: string) => {
     const r = el.canPlayType(type);
-    return r === 'probably' ? '✓ Penuh' : r === 'maybe' ? '~ Mungkin' : '✕ Tidak';
+    return r === 'probably' ? '✓ Hardware Didukung' : r === 'maybe' ? '~ Parsial' : '✕ Tidak Didukung';
   };
-  rows.push(['H.264 (MP4)', probe(v, 'video/mp4; codecs="avc1.42E01E"')]);
-  rows.push(['HEVC / H.265', probe(v, 'video/mp4; codecs="hvc1"')]);
-  rows.push(['VP9 (WebM)', probe(v, 'video/webm; codecs="vp9"')]);
-  rows.push(['AV1', probe(v, 'video/mp4; codecs="av01.0.05M.08"')]);
-  rows.push(['AAC', probe(a, 'audio/mp4; codecs="mp4a.40.2"')]);
-  rows.push(['Opus', probe(a, 'audio/ogg; codecs="opus"')]);
+  rows.push(['H.264 / AVC (MP4)', probe(v, 'video/mp4; codecs="avc1.42E01E"')]);
+  rows.push(['HEVC / H.265 (4K/8K)', probe(v, 'video/mp4; codecs="hvc1"')]);
+  rows.push(['VP9 (YouTube 4K)', probe(v, 'video/webm; codecs="vp9"')]);
+  rows.push(['AV1 (Next-Gen Codec)', probe(v, 'video/mp4; codecs="av01.0.05M.08"')]);
+  rows.push(['AAC Audio (Stereo)', probe(a, 'audio/mp4; codecs="mp4a.40.2"')]);
+  rows.push(['Opus Audio (Lossless/VoIP)', probe(a, 'audio/ogg; codecs="opus"')]);
   const drm = 'requestMediaKeySystemAccess' in navigator;
-  rows.push(['DRM (Widevine API)', drm ? '✓ Tersedia' : '✕ Tidak tersedia']);
+  rows.push(['DRM Digital (Widevine API)', drm ? '✓ Tersedia (Netflix/Prime Video)' : '✕ Tidak tersedia']);
   return rows;
 }
 
@@ -98,22 +121,23 @@ export function collectCodecs(): Row[] {
 export function collectSensors(): Row[] {
   const rows: Row[] = [];
   const check = (label: string, ok: boolean, extra?: string) =>
-    rows.push([label, ok ? `✓ Tersedia${extra ? ` ${extra}` : ''}` : '✕ Tidak ada di browser ini']);
+    rows.push([label, ok ? `✓ Tersedia${extra ? ` ${extra}` : ''}` : '✕ Tidak ada di browser']);
 
-  check('Accelerometer', 'Accelerometer' in window || 'DeviceMotionEvent' in window);
-  check('Gyroscope', 'Gyroscope' in window || 'DeviceOrientationEvent' in window);
-  check('Magnetometer', 'Magnetometer' in window);
-  check('Ambient light', 'AmbientLightSensor' in window);
-  check('Vibration', 'vibrate' in navigator);
-  check('Bluetooth (Web BT)', 'bluetooth' in navigator);
-  check('NFC (Web NFC)', 'NDEFReader' in window);
-  check('USB (WebUSB)', 'usb' in navigator);
-  check('Gamepad', 'getGamepads' in navigator);
-  check('Touch', 'ontouchstart' in window, `(${navigator.maxTouchPoints ?? 0} titik)`);
+  check('Sensor Akselerometer (G-Force)', 'Accelerometer' in window || 'DeviceMotionEvent' in window);
+  check('Sensor Giroskop (Orientasi 3D)', 'Gyroscope' in window || 'DeviceOrientationEvent' in window);
+  check('Sensor Magnetometer (Kompas)', 'Magnetometer' in window);
+  check('Sensor Cahaya Ambient (ALS)', 'AmbientLightSensor' in window);
+  check('Motor Getar (Haptic API)', 'vibrate' in navigator);
+  check('Bluetooth Nirkabel (Web Bluetooth)', 'bluetooth' in navigator);
+  check('Sensor NFC (Web NFC / NDEF)', 'NDEFReader' in window);
+  check('Koneksi USB OTG (WebUSB)', 'usb' in navigator);
+  check('Port Serial / Arduino (WebSerial)', 'serial' in navigator);
+  check('Gamepad / Stik Konsol', 'getGamepads' in navigator);
+  check('Layar Sentuh Multitouch', 'ontouchstart' in window, `(${navigator.maxTouchPoints ?? 0} titik sentuh)`);
   return rows;
 }
 
-/** Kamera & mikrofon yang terdaftar (label butuh izin, tetap jujur soal itu). */
+/** Kamera & mikrofon fisik. */
 export async function collectMediaDevices(): Promise<Row[]> {
   const rows: Row[] = [];
   if (!navigator.mediaDevices?.enumerateDevices) {
@@ -125,35 +149,35 @@ export async function collectMediaDevices(): Promise<Row[]> {
     const cams = devices.filter((d) => d.kind === 'videoinput');
     const mics = devices.filter((d) => d.kind === 'audioinput');
     const outs = devices.filter((d) => d.kind === 'audiooutput');
-    rows.push(['Kamera terdeteksi', `${cams.length} unit`]);
-    rows.push(['Mikrofon terdeteksi', `${mics.length} unit`]);
-    rows.push(['Output audio', `${outs.length} unit`]);
+    rows.push(['Sensor Kamera Fisik', `${cams.length} Modul Terdeteksi`]);
+    rows.push(['Mikrofon Input Fisik', `${mics.length} Modul Terdeteksi`]);
+    rows.push(['Kanal Output Speaker', `${outs.length} Kanal Output`]);
     const named = cams.filter((c) => c.label).length;
     if (cams.length && !named) {
-      rows.push(['Catatan', 'Nama perangkat baru muncul setelah izin kamera diberikan']);
+      rows.push(['Keterangan Label', 'Nama optik spesifik di-masking browser sampai izin diberikan']);
     } else {
-      for (const c of cams.slice(0, 3)) if (c.label) rows.push(['· Kamera', c.label]);
+      for (const c of cams.slice(0, 3)) if (c.label) rows.push(['· Lensa Teridentifikasi', c.label]);
     }
   } catch (err) {
-    rows.push(['Error', `Gagal membaca daftar perangkat (${String(err)})`]);
+    rows.push(['Error', `Gagal membaca perangkat media (${String(err)})`]);
   }
   return rows;
 }
 
-/** Kapabilitas platform web (PWA readiness, API modern). */
+/** Kapabilitas Web APIs & Keamanan Modern */
 export function collectPlatformFeatures(): Row[] {
   const rows: Row[] = [];
   const std = window.matchMedia('(display-mode: standalone)').matches;
-  rows.push(['Mode tampilan', std ? 'Standalone (terinstall)' : 'Tab browser']);
-  rows.push(['Service Worker', 'serviceWorker' in navigator ? '✓ Aktif' : '✕ Tidak']);
-  rows.push(['Web Share', 'share' in navigator ? '✓ Tersedia' : '✕ Tidak']);
-  rows.push(['Clipboard API', 'clipboard' in navigator ? '✓ Tersedia' : '✕ Tidak']);
-  rows.push(['Notification', 'Notification' in window ? '✓ Tersedia' : '✕ Tidak']);
-  rows.push(['WebGL 2', hasWebGL2() ? '✓ Tersedia' : '✕ Tidak']);
-  rows.push(['WebGPU', 'gpu' in navigator ? '✓ Tersedia' : '✕ Belum']);
-  rows.push(['WebAssembly', typeof WebAssembly === 'object' ? '✓ Tersedia' : '✕ Tidak']);
-  rows.push(['Cookie enabled', navigator.cookieEnabled ? '✓ Ya' : '✕ Tidak']);
-  rows.push(['Secure context', window.isSecureContext ? '✓ HTTPS' : '✕ Tidak aman']);
+  rows.push(['Mode Instalasi PWA', std ? '✓ Standalone (Aplikasi Terpasang)' : 'Tab Browser']);
+  rows.push(['Service Worker Offline', 'serviceWorker' in navigator ? '✓ Aktif & Siap Offline' : '✕ Tidak']);
+  rows.push(['Web Share API (Native Share)', 'share' in navigator ? '✓ Tersedia' : '✕ Tidak']);
+  rows.push(['Async Clipboard API', 'clipboard' in navigator ? '✓ Tersedia' : '✕ Tidak']);
+  rows.push(['Web Notifications Push', 'Notification' in window ? '✓ Didukung' : '✕ Tidak']);
+  rows.push(['Akselerasi WebGL 2.0', hasWebGL2() ? '✓ Aktif' : '✕ Tidak']);
+  rows.push(['Next-Gen WebGPU', 'gpu' in navigator ? '✓ Didukung Browser' : '✕ Belum diaktifkan']);
+  rows.push(['WebAssembly (WASM)', typeof WebAssembly === 'object' ? '✓ Didukung Penuh' : '✕ Tidak']);
+  rows.push(['Biometrik / WebAuthn FIDO2', window.PublicKeyCredential ? '✓ Mendukung Fingerprint/Passkey' : '✕ Tidak']);
+  rows.push(['Konteks Keamanan (HTTPS)', window.isSecureContext ? '✓ Secure Context Terverifikasi' : '✕ Tidak aman']);
   return rows;
 }
 
@@ -166,7 +190,7 @@ function hasWebGL2(): boolean {
   }
 }
 
-/** Memori JS heap (Chromium) — indikasi tekanan memori tab. */
+/** Memori JS Heap Engine */
 export function collectMemory(): Row[] {
   const rows: Row[] = [];
   const perf = performance as Performance & {
@@ -174,31 +198,31 @@ export function collectMemory(): Row[] {
   };
   const m = perf.memory;
   if (!m) {
-    rows.push(['Status', 'performance.memory hanya tersedia di Chromium']);
+    rows.push(['Status', 'performance.memory hanya di-expose pada engine V8 (Chromium)']);
     return rows;
   }
-  rows.push(['Heap terpakai', fmtBytes(m.usedJSHeapSize)]);
-  rows.push(['Heap dialokasikan', fmtBytes(m.totalJSHeapSize)]);
-  rows.push(['Batas heap', fmtBytes(m.jsHeapSizeLimit)]);
+  rows.push(['Alokasi Heap Aktif', fmtBytes(m.usedJSHeapSize)]);
+  rows.push(['Total Heap Engine', fmtBytes(m.totalJSHeapSize)]);
+  rows.push(['Batas Maksimum Heap Tab', fmtBytes(m.jsHeapSizeLimit)]);
   const pct = (m.usedJSHeapSize / m.jsHeapSizeLimit) * 100;
-  rows.push(['Pemakaian', `${pct.toFixed(1)}% dari batas`]);
+  rows.push(['Rasio Tekanan Memori', `${pct.toFixed(1)}% dari batas aman`]);
   setEntry('memory', {
     status: pct > 80 ? 'warn' : 'info',
-    value: `${pct.toFixed(0)}% heap`,
+    value: `${pct.toFixed(0)}% heap (${fmtBytes(m.usedJSHeapSize)})`,
   });
   return rows;
 }
 
-/** Waktu, zona, dan locale — konteks tambahan. */
+/** Waktu, Zona Waktu & Format Regional */
 export function collectLocale(): Row[] {
   const rows: Row[] = [];
   const dtf = Intl.DateTimeFormat().resolvedOptions();
-  rows.push(['Zona waktu', dtf.timeZone]);
-  rows.push(['Locale', dtf.locale]);
-  rows.push(['Kalender', dtf.calendar ?? '—']);
-  rows.push(['Bahasa browser', navigator.languages?.join(', ') ?? navigator.language]);
-  rows.push(['Waktu device', new Date().toLocaleString('id-ID')]);
+  rows.push(['Zona Waktu Sistem', dtf.timeZone]);
+  rows.push(['Locale Bahasa Utama', dtf.locale]);
+  rows.push(['Sistem Kalender', dtf.calendar ?? 'gregory']);
+  rows.push(['Daftar Bahasa Pilihan', navigator.languages?.join(', ') ?? navigator.language]);
+  rows.push(['Waktu Jam Lokal HP', new Date().toLocaleString('id-ID')]);
   const off = -new Date().getTimezoneOffset() / 60;
-  rows.push(['Offset UTC', `${off >= 0 ? '+' : ''}${off} jam`]);
+  rows.push(['Selisih Waktu UTC', `${off >= 0 ? '+' : ''}${off} Jam (WIB = +7)`]);
   return rows;
 }

@@ -1,11 +1,11 @@
 /**
- * Device info dashboard — 13 kategori data via Web API.
- * Menghubungkan info dasar + info-extra (display Hz, sensor, codec, platform, JS heap, media devices, locale).
+ * Device info dashboard — 14 kategori data via Web API + Cloudflare Edge IP Network.
  */
 import { $, setText, setHidden, fmtBytes, fmtPct, esc } from '../dom';
 import { setEntry } from './store';
 import type { Status } from './types';
 import {
+  collectIpDetails,
   collectDisplayExtra,
   collectCodecs,
   collectSensors,
@@ -34,7 +34,6 @@ function renderRows(containerId: string, rows: FieldRow[]) {
     .join('');
 }
 
-/** Card nonaktif: tampil redup + alasan */
 function deactivate(id: string, reason: string) {
   const card = $(`#card-${id}`);
   const body = $(`#card-${id} [data-body]`);
@@ -58,7 +57,18 @@ function activate(id: string, accent: 'healthy' | 'attention' | 'critical' | 'ne
   setHidden(body, false);
 }
 
-/* ---------- Baterai ---------- */
+/* ---------- 1. Detail IP Publik & Operator ISP ---------- */
+async function initIpNetwork() {
+  try {
+    const rows = await collectIpDetails();
+    activate('ipnet', 'healthy');
+    renderRows('card-ipnet', rows.map(([label, value]) => ({ label, value })));
+  } catch {
+    deactivate('ipnet', 'Gagal memuat detail jaringan IP dari Edge.');
+  }
+}
+
+/* ---------- 2. Baterai ---------- */
 interface BatteryLike extends EventTarget {
   level: number;
   charging: boolean;
@@ -92,7 +102,7 @@ async function initBattery() {
   }
 }
 
-/* ---------- Koneksi ---------- */
+/* ---------- 3. Sinyal & Network Info ---------- */
 function initConnection() {
   const nav = navigator as Navigator & {
     connection?: { effectiveType?: string; downlink?: number; rtt?: number; saveData?: boolean };
@@ -145,7 +155,7 @@ function updateOnlineBadge() {
 window.addEventListener('online', updateOnlineBadge);
 window.addEventListener('offline', updateOnlineBadge);
 
-/* ---------- Perangkat & Browser ---------- */
+/* ---------- 4. Perangkat & CPU ---------- */
 function initDevice() {
   const nav = navigator as Navigator & {
     userAgentData?: { platform?: string; brands?: { brand: string; version: string }[] };
@@ -156,9 +166,9 @@ function initDevice() {
   renderRows('card-device', [
     { label: 'Platform Sistem', value: nav.userAgentData?.platform ?? (nav.platform || '—'), mono: true },
     { label: 'Browser Engine', value: uaBrands.length > 0 ? uaBrands.join(', ') : 'Chromium / WebKit', mono: false },
-    { label: 'Jumlah CPU Core', value: nav.hardwareConcurrency != null ? `${nav.hardwareConcurrency} Core` : '—', mono: true },
-    { label: 'RAM Perangkat (Est)', value: nav.deviceMemory != null ? `≥ ${nav.deviceMemory} GB` : 'Tidak di-expose', mono: true },
-    { label: 'Maks Multi-Touch Point', value: `${navigator.maxTouchPoints ?? 0} Titik`, mono: true },
+    { label: 'Jumlah CPU Core', value: nav.hardwareConcurrency != null ? `${nav.hardwareConcurrency} Core Processing Threads` : '—', mono: true },
+    { label: 'RAM Perangkat (Est)', value: nav.deviceMemory != null ? `≥ ${nav.deviceMemory} GB RAM` : 'Tidak di-expose', mono: true },
+    { label: 'Maks Multi-Touch Point', value: `${navigator.maxTouchPoints ?? 0} Titik Sentuh`, mono: true },
     { label: 'Bahasa Sistem', value: navigator.language, mono: true },
   ]);
   setEntry('device', {
@@ -170,7 +180,7 @@ function initDevice() {
   if (uaEl) uaEl.textContent = navigator.userAgent;
 }
 
-/* ---------- Layar ---------- */
+/* ---------- 5. Layar & Resolusi ---------- */
 function initScreen() {
   activate('screen', 'neutral');
   const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -178,18 +188,19 @@ function initScreen() {
     screen.orientation?.type?.replace('-primary', '').replace('-', ' ') ??
     (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
   renderRows('card-screen', [
-    { label: 'Resolusi Layar', value: `${screen.width} × ${screen.height} px`, mono: true },
-    { label: 'Pixel Ratio (DPR)', value: `${window.devicePixelRatio}×`, mono: true },
+    { label: 'Resolusi Layar Fisik', value: `${screen.width * window.devicePixelRatio} × ${screen.height * window.devicePixelRatio} px (Aktual)`, mono: true },
+    { label: 'Viewport CSS', value: `${screen.width} × ${screen.height} px`, mono: true },
+    { label: 'Pixel Density (DPR)', value: `${window.devicePixelRatio}× Multiplier`, mono: true },
     { label: 'Orientasi Layar', value: orientation.toUpperCase(), mono: false },
-    { label: 'Tema Sistem OS', value: dark ? 'Dark Mode' : 'Light Mode', mono: false },
+    { label: 'Tema Sistem OS', value: dark ? 'Dark Mode Aktif' : 'Light Mode', mono: false },
   ]);
   setEntry('screen', {
     status: 'info',
-    value: `${screen.width}×${screen.height} @${window.devicePixelRatio}x`,
+    value: `${screen.width * window.devicePixelRatio}×${screen.height * window.devicePixelRatio} (${screen.width}×${screen.height}@${window.devicePixelRatio}x)`,
   });
 }
 
-/* ---------- GPU ---------- */
+/* ---------- 6. GPU & Chipset ---------- */
 function initGPU() {
   try {
     const canvas = document.createElement('canvas');
@@ -208,15 +219,15 @@ function initGPU() {
     activate('gpu', 'neutral');
     renderRows('card-gpu', [
       { label: 'Chipset GPU / Renderer', value: renderer || '—', mono: true },
-      { label: 'Vendor GPU', value: vendor || '—', mono: true },
+      { label: 'Vendor GPU Hardware', value: vendor || '—', mono: true },
     ]);
-    setEntry('gpu', { status: 'info', value: renderer });
+    setEntry('gpu', { status: 'info', value: `${renderer} (${vendor})` });
   } catch {
     deactivate('gpu', 'GPU gagal dibaca di browser ini.');
   }
 }
 
-/* ---------- Penyimpanan ---------- */
+/* ---------- 7. Penyimpanan Origin ---------- */
 async function initStorage() {
   if (!navigator.storage?.estimate) {
     deactivate('storage', 'Estimasi penyimpanan tidak didukung browser ini.');
@@ -240,7 +251,7 @@ async function initStorage() {
     ]);
     setEntry('storage', {
       status: 'info',
-      value: `${fmtBytes(usage)} / ${fmtBytes(quota)} kuota origin`,
+      value: `${fmtBytes(usage)} terpakai / ${fmtBytes(quota)} kuota origin (${fmtPct(ratio)})`,
       note: 'Kuota penyimpanan browser origin (bukan kapasitas memori flash total HP karena sandbox keamanan web).',
     });
   } catch {
@@ -250,7 +261,7 @@ async function initStorage() {
 
 /* ---------- Extra Modules ---------- */
 async function initExtraCards() {
-  // 1. Kualitas Layar (Refresh rate, HDR, Color Gamut)
+  // Kualitas Layar (Refresh rate, HDR, Color Gamut)
   try {
     const displayRows = await collectDisplayExtra();
     activate('displayx', 'neutral');
@@ -259,7 +270,7 @@ async function initExtraCards() {
     deactivate('displayx', 'Gagal membaca kualitas layar.');
   }
 
-  // 2. Sensor & Radio
+  // Sensor & Radio
   try {
     const sensorRows = collectSensors();
     activate('sensors', 'neutral');
@@ -268,7 +279,7 @@ async function initExtraCards() {
     deactivate('sensors', 'Gagal mendeteksi sensor.');
   }
 
-  // 3. Codec Media
+  // Codec Media
   try {
     const codecRows = collectCodecs();
     activate('codecs', 'neutral');
@@ -277,7 +288,7 @@ async function initExtraCards() {
     deactivate('codecs', 'Gagal memeriksa codec.');
   }
 
-  // 4. Media Devices
+  // Media Devices
   try {
     const mediaRows = await collectMediaDevices();
     activate('mediadev', 'neutral');
@@ -286,7 +297,7 @@ async function initExtraCards() {
     deactivate('mediadev', 'Gagal membaca perangkat media.');
   }
 
-  // 5. Kapabilitas Web
+  // Kapabilitas Web
   try {
     const platformRows = collectPlatformFeatures();
     activate('platform', 'neutral');
@@ -295,7 +306,7 @@ async function initExtraCards() {
     deactivate('platform', 'Gagal membaca fitur web.');
   }
 
-  // 6. Memori JS Heap
+  // Memori JS Heap
   try {
     const memoryRows = collectMemory();
     activate('memory', 'neutral');
@@ -304,7 +315,7 @@ async function initExtraCards() {
     deactivate('memory', 'Memori JS heap tidak tersedia.');
   }
 
-  // 7. Waktu & Locale
+  // Waktu & Locale
   try {
     const localeRows = collectLocale();
     activate('locale', 'neutral');
@@ -316,6 +327,7 @@ async function initExtraCards() {
 
 export function initInfoDashboard() {
   updateOnlineBadge();
+  initIpNetwork();
   initBattery();
   initConnection();
   initDevice();
