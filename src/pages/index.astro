@@ -4,36 +4,19 @@ import InfoTabs from '@/components/InfoTabs.tsx';
 import ResetButton from '@/components/ResetButton.tsx';
 
 const infoCards = [
-  {
-    id: 'battery',
-    title: 'Baterai',
-    desc: 'Level daya & status cas saat ini — persentase saja, bukan battery health.',
-  },
-  {
-    id: 'connection',
-    title: 'Koneksi',
-    desc: 'Online/offline + estimasi kualitas jaringan (effectiveType, RTT).',
-  },
-  {
-    id: 'device',
-    title: 'Perangkat & Browser',
-    desc: 'Platform, core CPU, RAM approx, touch points, bahasa.',
-  },
-  {
-    id: 'screen',
-    title: 'Layar',
-    desc: 'Resolusi, pixel ratio, orientasi, mode warna OS.',
-  },
-  {
-    id: 'gpu',
-    title: 'GPU',
-    desc: 'Renderer & vendor chipset via WebGL debug info.',
-  },
-  {
-    id: 'storage',
-    title: 'Penyimpanan',
-    desc: 'Kuota & pemakaian storage origin browser (bukan kapasitas fisik HP).',
-  },
+  { id: 'battery', icon: '🔋', title: 'Baterai', desc: 'Level daya & status cas. Bukan battery health — data itu tidak ada di web.' },
+  { id: 'connection', icon: '📶', title: 'Koneksi', desc: 'Online/offline + estimasi kualitas jaringan.' },
+  { id: 'device', icon: '📱', title: 'Perangkat & Browser', desc: 'Platform, core CPU, RAM approx, touch points.' },
+  { id: 'screen', icon: '🖥️', title: 'Layar', desc: 'Resolusi, pixel ratio, orientasi, mode warna.' },
+  { id: 'gpu', icon: '🎮', title: 'GPU', desc: 'Renderer & vendor chipset via WebGL.' },
+  { id: 'storage', icon: '💾', title: 'Penyimpanan', desc: 'Kuota storage browser, bukan kapasitas fisik HP.' },
+  { id: 'displayx', icon: '✨', title: 'Kualitas Layar', desc: 'Refresh rate terukur, HDR, color gamut.' },
+  { id: 'sensors', icon: '🧭', title: 'Sensor & Radio', desc: 'Ketersediaan sensor, Bluetooth, NFC, USB.' },
+  { id: 'codecs', icon: '🎬', title: 'Codec Media', desc: 'Dukungan H.264, HEVC, VP9, AV1, DRM.' },
+  { id: 'mediadev', icon: '📷', title: 'Kamera & Mic', desc: 'Jumlah perangkat input yang terdeteksi.' },
+  { id: 'platform', icon: '⚙️', title: 'Kapabilitas Web', desc: 'PWA, WebGL2, WebGPU, WASM, secure context.' },
+  { id: 'memory', icon: '🧠', title: 'Memori JS Heap', desc: 'Tekanan memori tab (Chromium saja).' },
+  { id: 'locale', icon: '🌏', title: 'Waktu & Locale', desc: 'Zona waktu, bahasa, kalender sistem.' },
 ];
 
 const tests = [
@@ -43,118 +26,134 @@ const tests = [
   { id: 'mic', emoji: '🎤', name: 'Mikrofon', desc: 'Level meter live dari input mic.', jenis: 'Semi-otomatis' },
   { id: 'camera', emoji: '📷', name: 'Kamera', desc: 'Preview live + ganti depan/belakang.', jenis: 'Manual' },
   { id: 'vibrate', emoji: '📳', name: 'Getar', desc: 'Pola getar via navigator.vibrate.', jenis: 'Manual' },
-  { id: 'motion', emoji: '🧭', name: 'Sensor Gerak', desc: 'Bubble level dari gyroscope/accelerometer.', jenis: 'Semi-otomatis' },
+  { id: 'motion', emoji: '🧭', name: 'Sensor Gerak', desc: 'Bubble level dari gyroscope.', jenis: 'Semi-otomatis' },
   { id: 'benchmark', emoji: '⚡', name: 'Performa CPU/GPU', desc: 'Benchmark ±6 detik, skor FPS indikatif.', jenis: 'Otomatis' },
   { id: 'gps', emoji: '🛰️', name: 'GPS', desc: 'Presisi kuncian satelit (accuracy meter).', jenis: 'Otomatis' },
 ];
 ---
 
 <BaseLayout>
-  <main class="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pb-24 pt-8">
+  <main class="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-28 pt-6">
     <!-- Hero -->
     <header class="flex flex-col items-center gap-3 text-center">
-      <h1 class="font-heading text-3xl font-extrabold leading-tight sm:text-4xl">
-        Device Doctor
-      </h1>
+      <div class="flex items-center gap-2">
+        <span class="text-3xl">🩺</span>
+        <h1 class="font-heading text-3xl font-extrabold leading-none sm:text-4xl">Device Doctor</h1>
+      </div>
       <p class="max-w-md text-sm text-muted-foreground">
-        Cek kondisi HP kamu langsung dari browser. Jujur soal keterbatasan:
-        hasilnya <b>indikasi</b> dari data yang bisa dibaca browser — bukan diagnosis pasti.
+        Cek kondisi HP kamu langsung dari browser. Hasilnya <b>indikasi</b> dari data
+        yang bisa dibaca browser — bukan diagnosis pasti.
       </p>
-      <span
-        id="net-status"
-        class="inline-block rounded-base border-2 border-border px-2 py-0.5 font-data text-xs"
-      >
-        Online?
-      </span>
+
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        <span id="net-status" class="dd-btn bg-secondary-background px-2 py-0.5 font-data text-xs">
+          ● memeriksa…
+        </span>
+        <span id="install-hint" hidden class="dd-btn bg-accent px-2 py-0.5 font-data text-xs">
+          💡 bisa di-install
+        </span>
+      </div>
+
+      <!-- Ring progres pemeriksaan -->
+      <div class="mt-1 flex items-center gap-4 rounded-base border-[3px] border-border bg-card px-4 py-3" style="box-shadow:5px 5px 0 0 var(--border)">
+        <svg class="dd-ring" width="54" height="54" viewBox="0 0 54 54" aria-hidden="true">
+          <circle cx="27" cy="27" r="22" fill="none" stroke="var(--secondary-background)" stroke-width="7"></circle>
+          <circle
+            id="progress-ring"
+            cx="27" cy="27" r="22" fill="none"
+            stroke="var(--status-healthy)" stroke-width="7" stroke-linecap="round"
+            stroke-dasharray="138.2" stroke-dashoffset="138.2"></circle>
+        </svg>
+        <div class="text-left">
+          <p id="progress-text" class="font-data text-sm font-semibold">0/9 test</p>
+          <p class="text-xs text-muted-foreground">Jalankan test di tab Periksa</p>
+        </div>
+      </div>
+
       <div class="mt-1 w-full">
         <InfoTabs client:load />
       </div>
     </header>
 
-    <!-- PANEL INFO -->
-    <section id="panel-info">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <!-- ============ PANEL INFO ============ -->
+    <section id="panel-info" class="dd-fade">
+      <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         {
           infoCards.map((c) => (
             <article
               id={`card-${c.id}`}
-              class="flex flex-col gap-3 rounded-base border-[3px] border-border bg-card p-4"
-              style="box-shadow:4px 4px 0 0 var(--border)"
+              class="dd-card relative flex flex-col gap-2 p-4"
+              data-accent="neutral"
             >
-              <h3 class="font-heading font-bold">{c.title}</h3>
-              <div data-body class="min-h-[72px]" data-rows="" />
-              <p data-note class="text-xs text-muted-foreground" />
+              <div class="flex items-center gap-2">
+                <span class="text-lg">{c.icon}</span>
+                <h3 class="font-heading text-sm font-bold uppercase tracking-wide">{c.title}</h3>
+              </div>
+              <dl data-body class="flex flex-col">
+                <div class="dd-skeleton h-4 w-3/4" />
+              </dl>
+              <p data-note class="text-[11px] leading-snug text-muted-foreground">{c.desc}</p>
             </article>
           ))
         }
       </div>
 
-      <article
-        id="card-location"
-        class="mt-4 flex flex-col gap-2 rounded-base border-[3px] border-border bg-card p-4"
-        style="box-shadow:4px 4px 0 0 var(--border)"
-      >
-        <h3 class="font-heading font-bold">Lokasi</h3>
-        <p class="text-xs text-muted-foreground">
-          Lokasi nggak dikirim ke mana pun — dipakai lokal di device-mu saja,
-          cuma buat lihat presisi GPS.
+      <!-- Lokasi (permission on-demand) -->
+      <article id="card-location" class="dd-card relative mt-3.5 flex flex-col gap-2 p-4" data-accent="neutral">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📍</span>
+          <h3 class="font-heading text-sm font-bold uppercase tracking-wide">Lokasi</h3>
+        </div>
+        <p class="text-[11px] text-muted-foreground">
+          Lokasi diproses lokal di device-mu saja, tidak dikirim ke server mana pun.
+          Dipakai hanya untuk melihat presisi GPS.
         </p>
-        <button
-          id="btn-location"
-          class="w-fit rounded-base border-2 border-border bg-secondary-background px-3 py-1.5 text-sm font-semibold"
-          style="box-shadow:3px 3px 0 0 var(--border)"
-        >
+        <button id="btn-location" class="dd-btn w-fit bg-secondary-background px-3 py-1.5 text-sm">
           🧭 Cek Lokasi
         </button>
-        <p id="loc-result" class="font-data text-sm" />
+        <p id="loc-result" class="font-data text-xs"></p>
       </article>
 
-      <article
-        id="card-ua"
-        class="mt-4 flex flex-col gap-2 rounded-base border-[3px] border-border bg-card p-4"
-        style="box-shadow:4px 4px 0 0 var(--border)"
-      >
-        <h3 class="font-heading font-bold">User Agent Mentah</h3>
-        <p data-ua class="font-data text-xs break-all text-muted-foreground" />
+      <!-- UA mentah -->
+      <article id="card-ua" class="dd-card relative mt-3.5 flex flex-col gap-2 p-4" data-accent="neutral">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🔤</span>
+          <h3 class="font-heading text-sm font-bold uppercase tracking-wide">User Agent Mentah</h3>
+        </div>
+        <p data-ua class="font-data text-[11px] leading-relaxed break-all text-muted-foreground"></p>
       </article>
     </section>
 
-    <!-- PANEL TESTS -->
-    <section id="panel-tests" hidden>
-      <p class="mb-3 text-xs text-muted-foreground">
-        Jalankan test satu-satu. Hasil tiap test kecatet otomatis buat ringkasan akhir.
-        Kalau tombol nggak muncul/tidak aktif, itu keterbatasan browser — bukan HP-mu yang rusak.
-      </p>
+    <!-- ============ PANEL TESTS ============ -->
+    <section id="panel-tests" class="dd-fade" hidden>
+      <div class="dd-card mb-3.5 flex flex-col gap-2 p-4" data-accent="neutral">
+        <p class="text-xs leading-relaxed text-muted-foreground">
+          Jalankan test satu per satu — hasilnya otomatis tercatat untuk ringkasan.
+          Kalau tombol tidak aktif, itu <b>keterbatasan browser</b>, bukan HP-mu yang rusak.
+        </p>
+        <button id="btn-run-all" class="dd-btn w-fit bg-main px-3 py-1.5 text-sm">
+          ▶️ Mulai dari test pertama
+        </button>
+      </div>
+
       <div class="flex flex-col gap-3">
         {
           tests.map((t) => (
-            <div
-              id={`test-${t.id}`}
-              class="flex items-start justify-between gap-3 rounded-base border-[3px] border-border bg-card p-4"
-              style="box-shadow:4px 4px 0 0 var(--border)"
-            >
-              <div>
-                <h3 class="font-heading font-bold">
+            <div id={`test-${t.id}`} class="dd-card relative flex items-start justify-between gap-3 p-4" data-accent="neutral">
+              <div class="min-w-0">
+                <h3 class="font-heading text-sm font-bold">
                   {t.emoji} {t.name}
                 </h3>
-                <p class="text-sm text-muted-foreground">{t.desc}</p>
-                <p class="text-xs text-muted-foreground">Jenis: {t.jenis}</p>
-                {t.id === 'vibrate' && (
-                  <p data-vibrate-msg hidden class="mt-1 text-xs text-muted-foreground" />
-                )}
+                <p class="mt-0.5 text-xs text-muted-foreground">{t.desc}</p>
+                <p class="mt-1 font-data text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {t.jenis}
+                </p>
+                {t.id === 'vibrate' && <p data-vibrate-msg hidden class="mt-1 text-[11px] text-muted-foreground" />}
+                <p data-result={t.id} class="mt-1 font-data text-[11px]"></p>
               </div>
               <div class="flex shrink-0 flex-col items-end gap-1.5">
-                <button
-                  data-test={t.id}
-                  class="rounded-base border-2 border-border bg-main px-3 py-1.5 text-sm font-semibold"
-                  style="box-shadow:3px 3px 0 0 var(--border)"
-                >
-                  Mulai
-                </button>
-                <span
-                  data-status={t.id}
-                  class="inline-block rounded-base border-2 border-border px-2 py-0.5 text-[11px] font-semibold"
-                />
+                <button data-test={t.id} class="dd-btn bg-main px-3 py-1.5 text-sm">Mulai</button>
+                <span data-status={t.id} class="inline-block rounded-base border-2 border-border px-2 py-0.5 text-[10px] font-semibold"></span>
               </div>
             </div>
           ))
@@ -162,29 +161,82 @@ const tests = [
       </div>
     </section>
 
-    <!-- PANEL RINGKASAN -->
-    <section id="panel-ringkasan" hidden>
-      <div id="summary-box" />
-      <div class="mt-4 flex items-center justify-between gap-3">
-        <span id="progress-text" class="font-data text-xs text-muted-foreground" />
-        <button
-          id="btn-summary"
-          class="rounded-base border-2 border-border bg-secondary-background px-3 py-1.5 text-sm font-semibold"
-          style="box-shadow:3px 3px 0 0 var(--border)"
-        >
-          🔄 Perbarui
+    <!-- ============ PANEL RINGKASAN ============ -->
+    <section id="panel-ringkasan" class="dd-fade" hidden>
+      <div id="summary-box"></div>
+
+      <!-- Analisis AI -->
+      <div class="dd-card relative mt-4 flex flex-col gap-3 p-4" data-accent="healthy">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">🤖</span>
+            <h3 class="font-heading text-sm font-bold uppercase tracking-wide">Analisis AI</h3>
+          </div>
+          <span class="dd-btn bg-secondary-background px-2 py-0.5 font-data text-[10px]">Grok 4.6 xhigh</span>
+        </div>
+        <p class="text-[11px] leading-relaxed text-muted-foreground">
+          AI membaca hasil pemeriksaanmu lalu menjelaskan artinya dalam bahasa manusia.
+          Data yang dikirim hanya hasil test — tidak termasuk lokasi persismu.
+        </p>
+        <button id="btn-ai-analyze" class="dd-btn w-fit bg-main px-3 py-1.5 text-sm">
+          ✨ Minta Analisis AI
         </button>
+        <div id="ai-output" class="text-sm leading-relaxed"></div>
       </div>
-      <div class="mt-4 flex justify-end">
+
+      <div class="mt-4 flex items-center justify-between gap-3">
+        <button id="btn-summary" class="dd-btn bg-secondary-background px-3 py-1.5 text-sm">
+          🔄 Perbarui Ringkasan
+        </button>
         <ResetButton client:visible />
       </div>
     </section>
 
-    <footer class="pt-2 text-center text-xs text-muted-foreground">
-      Device Doctor · indikasi berbasis browser, bukan pengganti alat service resmi.
+    <footer class="pt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
+      Device Doctor · indikasi berbasis Web API, bukan pengganti alat service resmi.<br />
+      Battery health, kekuatan sinyal dBm, dan tes tombol fisik memang tidak bisa dibaca browser apa pun.
     </footer>
   </main>
 
-  <!-- Overlay fullscreen buat test interaktif -->
-  <div id="test-overlay" class="test-overlay" data-active="false" />
+  <!-- Tombol chat mengapung -->
+  <button
+    id="btn-chat"
+    aria-label="Tanya asisten AI"
+    class="dd-btn fixed bottom-5 right-5 z-40 flex items-center gap-2 bg-signature px-4 py-3 text-sm font-bold"
+  >
+    💬 Tanya AI
+  </button>
+
+  <!-- Panel chat -->
+  <div id="chat-panel" hidden class="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-2xl px-3 pb-3">
+    <div class="dd-card flex max-h-[75vh] flex-col overflow-hidden p-0">
+      <div class="flex items-center justify-between gap-2 border-b-[3px] border-border bg-card px-4 py-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-base">🤖</span>
+          <h3 class="font-heading text-sm font-bold">Dokter Device</h3>
+          <span class="dd-btn bg-secondary-background px-1.5 py-0.5 font-data text-[9px]">Grok 4.6</span>
+        </div>
+        <button id="btn-chat-close" class="dd-btn bg-secondary-background px-2 py-0.5 text-xs">✕</button>
+      </div>
+
+      <div id="chat-log" class="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3"></div>
+
+      <div class="border-t-[3px] border-border bg-card p-2.5">
+        <div id="chat-suggestions" class="mb-2 flex flex-wrap gap-1.5"></div>
+        <form id="chat-form" class="flex items-center gap-2">
+          <input
+            id="chat-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Tanya apa saja soal HP kamu…"
+            class="min-w-0 flex-1 rounded-base border-2 border-border bg-secondary-background px-3 py-2 text-sm outline-none focus:border-[var(--status-healthy)]"
+          />
+          <button type="submit" class="dd-btn bg-main px-3 py-2 text-sm">Kirim</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay fullscreen untuk test interaktif -->
+  <div id="test-overlay" class="test-overlay" data-active="false"></div>
 </BaseLayout>

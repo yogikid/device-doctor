@@ -1,12 +1,22 @@
-// Wrangler config — deploy sebagai Workers Static Assets.
-// Full static (SSG, tanpa adapter): astro build → dist/ → wrangler deploy.
+// Wrangler config — Worker + Static Assets.
+// Worker menangani /api/ai/* (proxy AI, API key aman di server-side),
+// sisanya diserahkan ke static assets hasil `astro build`.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "device-doctor",
-  "compatibility_date": "2026-08-01",
-  // nodejs_compat wajib kalau nanti nambah adapter SSR — aman diset dari sekarang.
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-08-26",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "AI_MODEL": "gcli/grok-4.6-xhigh",
+    "AI_BASE_URL": "http://163-172-110-146.rev.poneytelecom.eu:1047/v1"
   }
 }
