@@ -9,9 +9,41 @@ export const ChromiumNoticeModal: React.FC = () => {
 
   useEffect(() => {
     try {
+      // 1. Jika user sudah pernah centang "Jangan tampilkan lagi", skip
       const isDismissed = localStorage.getItem(HIDE_KEY) === 'true';
       if (isDismissed) return;
 
+      // 2. Deteksi apakah browser saat ini sudah merupakan keluarga Chromium
+      const nav = navigator as any;
+      const ua = navigator.userAgent || '';
+      
+      // Cek melalui userAgentData (modern) atau User-Agent string (klasik)
+      let isChromium = false;
+      
+      if (nav.userAgentData && Array.isArray(nav.userAgentData.brands)) {
+        isChromium = nav.userAgentData.brands.some((b: { brand: string }) =>
+          /Chromium|Chrome|Google Chrome|Microsoft Edge|Opera|Brave/i.test(b.brand)
+        );
+      }
+      
+      if (!isChromium) {
+        // Deteksi via regex UA string
+        // Chromium UA biasanya memuat Chrome/xxx atau CriOS/xxx dan bukan standalone Safari murni atau Firefox Gecko murni
+        const hasChromeToken = /Chrome\/|CriOS\/|Edg\/|OPR\/|SamsungBrowser\/|Brave\//i.test(ua);
+        const isFirefox = /Firefox\/|FxiOS\//i.test(ua);
+        const isPureSafari = /Safari\//i.test(ua) && !hasChromeToken;
+
+        if (hasChromeToken && !isFirefox && !isPureSafari) {
+          isChromium = true;
+        }
+      }
+
+      // Jika user SUDAH pakai browser Chromium (Chrome, Brave, Edge, Samsung Internet, dll), JANGAN tampilkan alert!
+      if (isChromium) {
+        return;
+      }
+
+      // Jika BUKAN Chromium (misal Safari iOS, Firefox, WebView non-standard), munculkan rekomendasi setelah 600ms
       const timer = setTimeout(() => setIsOpen(true), 600);
       return () => clearTimeout(timer);
     } catch {
@@ -59,7 +91,7 @@ export const ChromiumNoticeModal: React.FC = () => {
         {/* Isi Pesan Rekomendasi */}
         <div className="flex flex-col gap-2.5 text-xs text-foreground/90 leading-relaxed">
           <p>
-            Untuk menjalankan seluruh pengujian hardware tingkat rendah secara maksimal (seperti <b>High-Entropy Client Hints, Motor Getar Haptics, WebAudio Stereo, WebGPU, WebHID & Storage Quota</b>), disarankan menggunakan browser keluarga <b>Chromium</b>:
+            Kami mendeteksi kamu menggunakan browser non-Chromium. Untuk menjalankan seluruh pengujian hardware tingkat rendah secara maksimal (seperti <b>High-Entropy Client Hints, Motor Getar Haptics, WebAudio Stereo, WebGPU, WebHID & Storage Quota</b>), disarankan menggunakan browser keluarga <b>Chromium</b>:
           </p>
 
           <div className="flex flex-wrap gap-2 pt-1 font-heading font-extrabold text-[11px]">
