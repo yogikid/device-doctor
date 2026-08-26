@@ -1,9 +1,22 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-react';
+import { 
+  MapPin, 
+  Navigation, 
+  Compass, 
+  AlertCircle, 
+  ExternalLink, 
+  RotateCw,
+  Layers,
+  ShieldCheck
+} from 'lucide-react';
 ---
 
-<BaseLayout title="Peta & Sensor GPS · Device Doctor" description="Inspeksi presisi chip GPS, radius akurasi koordinat, dan peta interaktif lokal.">
+<BaseLayout 
+  title="Peta Interaktif & Presisi Satelit GPS · Device Doctor" 
+  description="Uji presisi chip GPS/GNSS smartphone, radius akurasi sinyal satelit, dan visualisasi titik koordinat pada peta interaktif OpenStreetMap langsung di browser."
+  keywords="cek gps hp, tes akurasi gps, tes satelit gnss smartphone, peta openstreetmap lokal, cek koordinat latitude longitude online"
+>
   <div class="flex flex-col gap-4">
     <!-- Header Card -->
     <div class="dd-card p-4 bg-card flex flex-col gap-2" data-accent="neutral">
@@ -25,7 +38,7 @@ import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-r
 
     <!-- Map Container Card -->
     <div class="dd-card p-2 bg-card flex flex-col gap-3 relative overflow-hidden" data-accent="neutral">
-      <!-- Peta OpenStreetMap (Direct Embed + Leaflet fallback) -->
+      <!-- Peta OpenStreetMap (Direct Embed) -->
       <div class="relative w-full h-80 sm:h-96 rounded-base border-2 border-border bg-secondary-background overflow-hidden">
         <div id="map-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-secondary-background">
           <Compass className="w-10 h-10 text-muted-foreground animate-pulse mb-2" />
@@ -35,7 +48,6 @@ import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-r
           </p>
         </div>
 
-        <!-- OpenStreetMap Native Iframe (Anti-Fail, 100% selalu nampil di semua browser) -->
         <iframe
           id="osm-iframe"
           class="hidden w-full h-full border-0 relative z-10"
@@ -47,25 +59,37 @@ import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-r
       <!-- Action Button & Coordinates Display -->
       <div class="flex flex-col gap-2.5 p-2">
         <button id="btn-get-loc" class="dd-btn bg-main py-2.5 px-4 text-xs font-extrabold flex items-center justify-center gap-2 w-full">
-          <Navigation className="w-4 h-4" />
-          <span>🧭 Kunci Posisi & Buka Peta</span>
+          <Navigation className="w-4 h-4 text-primary" />
+          <span>Kunci Posisi & Buka Peta</span>
         </button>
 
         <div id="loc-details" class="hidden flex-col gap-2 p-3 bg-secondary-background rounded-base border-2 border-border font-data text-xs">
           <div class="flex justify-between border-b border-border/30 pb-1.5">
-            <span class="text-muted-foreground">Garis Lintang (Latitude):</span>
+            <span class="text-muted-foreground flex items-center gap-1.5">
+              <Compass className="w-3.5 h-3.5 text-muted-foreground" />
+              Garis Lintang (Latitude):
+            </span>
             <span id="loc-lat" class="font-bold">—</span>
           </div>
           <div class="flex justify-between border-b border-border/30 pb-1.5">
-            <span class="text-muted-foreground">Garis Bujur (Longitude):</span>
+            <span class="text-muted-foreground flex items-center gap-1.5">
+              <Compass className="w-3.5 h-3.5 text-muted-foreground" />
+              Garis Bujur (Longitude):
+            </span>
             <span id="loc-lon" class="font-bold">—</span>
           </div>
           <div class="flex justify-between border-b border-border/30 pb-1.5">
-            <span class="text-muted-foreground">Radius Presisi (Akurasi):</span>
+            <span class="text-muted-foreground flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-healthy" />
+              Radius Presisi (Akurasi):
+            </span>
             <span id="loc-acc" class="font-bold text-healthy">—</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-muted-foreground">Kualitas Kuncian:</span>
+            <span class="text-muted-foreground flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+              Kualitas Kuncian:
+            </span>
             <span id="loc-status" class="font-bold">Terkunci</span>
           </div>
           <div class="pt-1 flex gap-2">
@@ -74,15 +98,17 @@ import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-r
               href="#"
               target="_blank"
               rel="noopener noreferrer"
-              class="dd-btn bg-card text-foreground px-3 py-1 text-[11px] font-bold flex items-center gap-1 w-full justify-center"
+              class="dd-btn bg-card text-foreground px-3 py-1.5 text-[11px] font-bold flex items-center gap-1.5 w-full justify-center shadow-xs"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-primary" />
               <span>Buka di OpenStreetMap</span>
             </a>
           </div>
         </div>
 
-        <p id="loc-err" class="hidden text-xs text-critical font-bold p-2 bg-critical/20 rounded-base border-2 border-border font-data">
+        <p id="loc-err" class="hidden text-xs text-critical font-bold p-2.5 bg-critical/20 rounded-base border-2 border-border font-data flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-critical shrink-0" />
+          <span id="loc-err-txt"></span>
         </p>
       </div>
     </div>
@@ -90,7 +116,7 @@ import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-r
     <!-- Tips GNSS/GPS Hardware -->
     <div class="dd-card p-4 bg-card flex flex-col gap-2" data-accent="neutral">
       <h3 class="font-heading text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-        <AlertCircle className="w-3.5 h-3.5" />
+        <AlertCircle className="w-3.5 h-3.5 text-muted-foreground" />
         Info Pengujian Sensor GPS
       </h3>
       <ul class="text-xs text-muted-foreground space-y-1.5 list-disc list-inside leading-relaxed">
@@ -109,6 +135,7 @@ import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-r
       const iframe = document.getElementById('osm-iframe') as HTMLIFrameElement | null;
       const details = document.getElementById('loc-details');
       const errBox = document.getElementById('loc-err');
+      const errTxt = document.getElementById('loc-err-txt');
       const latEl = document.getElementById('loc-lat');
       const lonEl = document.getElementById('loc-lon');
       const accEl = document.getElementById('loc-acc');
@@ -119,7 +146,6 @@ import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-r
         if (placeholder) placeholder.style.display = 'none';
         if (iframe) {
           iframe.classList.remove('hidden');
-          // OpenStreetMap embed URL dengan marker tepat di titik koordinat
           const bboxDelta = 0.005;
           const bbox = `${lon - bboxDelta},${lat - bboxDelta},${lon + bboxDelta},${lat + bboxDelta}`;
           iframe.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;
@@ -149,27 +175,27 @@ import { MapPin, Navigation, Compass, AlertCircle, ExternalLink } from 'lucide-r
 
       btn?.addEventListener('click', () => {
         if (!('geolocation' in navigator)) {
-          if (errBox) {
-            errBox.textContent = 'Fitur Geolocation tidak didukung di browser ini.';
+          if (errBox && errTxt) {
+            errTxt.textContent = 'Fitur Geolocation tidak didukung di browser ini.';
             errBox.classList.remove('hidden');
           }
           return;
         }
 
         btn.setAttribute('disabled', 'true');
-        btn.innerHTML = '<span>📡 Mencari Kuncian Satelit…</span>';
+        btn.innerHTML = '<span>Mencari Kuncian Satelit…</span>';
 
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             btn.removeAttribute('disabled');
-            btn.innerHTML = '<span>🔄 Perbarui Kuncian Posisi</span>';
+            btn.innerHTML = '<span>Perbarui Kuncian Posisi</span>';
             showMap(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
           },
           (err) => {
             btn.removeAttribute('disabled');
-            btn.innerHTML = '<span>🧭 Kunci Posisi & Buka Peta</span>';
-            if (errBox) {
-              errBox.textContent = err.code === err.PERMISSION_DENIED
+            btn.innerHTML = '<span>Kunci Posisi & Buka Peta</span>';
+            if (errBox && errTxt) {
+              errTxt.textContent = err.code === err.PERMISSION_DENIED
                 ? 'Izin lokasi ditolak. Buka izin lokasi di address bar browser.'
                 : `Gagal membaca GPS (${err.message}).`;
               errBox.classList.remove('hidden');

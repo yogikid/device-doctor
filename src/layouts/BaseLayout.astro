@@ -2,69 +2,163 @@
 import '../styles/global.css';
 import BottomNav from '@/components/BottomNav.tsx';
 import { ClientRouter } from 'astro:transitions';
+import { Stethoscope } from 'lucide-react';
 
 interface Props {
   title?: string;
   description?: string;
+  keywords?: string;
+  image?: string;
 }
 
 const {
-  title = 'Device Doctor · Mobile Hardware & Specs Inspector',
-  description = 'Periksa kondisi HP & diagnosa hardware langsung dari browser secara akurat, interaktif, dan jujur.',
+  title = 'Device Doctor · Mobile Hardware Diagnostics & Web Specs Lab',
+  description = 'Platform inspeksi mendalam hardware smartphone, deteksi IP/ISP, uji layar sentuh edge-to-edge, dead pixel solid 8 warna, motor getar haptic, dan diagnosa AI Grok 4.6 secara real-time langsung di browser.',
+  keywords = 'device doctor, cek hp, tes layar sentuh, cek dead pixel, cek getar hp, spesifikasi hp online, cek isp ip publik, uji hardware smartphone, web diagnostics, grok ai hardware doctor, benchmark hp browser',
+  image = 'https://device-doctor.abiding-warlock.workers.dev/icons/icon-512.png',
 } = Astro.props;
 
-const currentPath = Astro.url.pathname;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://device-doctor.abiding-warlock.workers.dev');
+
+// Schema.org JSON-LD untuk WebApplication, SoftwareApplication & AI Agent Geo-Awareness
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "@id": `${canonicalURL.origin}/#webapp`,
+      "name": "Device Doctor",
+      "url": canonicalURL.origin,
+      "description": description,
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Android, iOS, Windows, macOS, Linux",
+      "browserRequirements": "Requires Modern Web Standards (HTML5, WebGL, Web Audio, Geolocation)",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "IDR"
+      },
+      "featureList": [
+        "Deteksi 14 Modul Spesifikasi Hardware & Jaringan Edge",
+        "Uji Matriks Layar Sentuh Multi-Touch 60 Blok Edge-to-Edge",
+        "Uji Dead Pixel 8 Spektrum Warna Solid Murni Fullscreen",
+        "Uji Speaker Stereo Kiri & Kanan Terpisah",
+        "Uji Multi-Pattern Vibration Motor (Haptics API)",
+        "Peta Interaktif OpenStreetMap & Presisi Satelit GPS",
+        "Analisis Medis Perangkat & Chatbot AI Grok 4.6"
+      ],
+      "inLanguage": "id-ID",
+      "author": {
+        "@type": "Person",
+        "name": "Yogi",
+        "url": "https://github.com/yogikid"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${canonicalURL.origin}/#website`,
+      "url": canonicalURL.origin,
+      "name": "Device Doctor",
+      "description": description,
+      "inLanguage": "id-ID"
+    }
+  ]
+};
 ---
 
 <!doctype html>
 <html lang="id">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#EDF2ED" />
-    <meta name="description" content={description} />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#A7D7C5" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- SEO Meta Tags Primer -->
     <title>{title}</title>
-    <!-- Astro ClientRouter for Instant Single-Page Navigation without full page reload -->
+    <meta name="title" content={title} />
+    <meta name="description" content={description} />
+    <meta name="keywords" content={keywords} />
+    <meta name="author" content="Yogi" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href={canonicalURL.href} />
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL.href} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:locale" content="id_ID" />
+    <meta property="og:site_name" content="Device Doctor" />
+
+    <!-- Twitter Cards -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={canonicalURL.href} />
+    <meta property="twitter:title" content={title} />
+    <meta property="twitter:description" content={description} />
+    <meta property="twitter:image" content={image} />
+
+    <!-- Geo & Location Meta Tags (Regional SEO & Geo-Targeting AI) -->
+    <meta name="geo.region" content="ID" />
+    <meta name="geo.placename" content="Indonesia" />
+    <meta name="geo.position" content="-6.2088;106.8456" />
+    <meta name="ICBM" content="-6.2088, 106.8456" />
+
+    <!-- PWA & Mobile Web Capabilities -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Device Doctor" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Schema.org JSON-LD Structured Data -->
+    <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+
+    <!-- Client Router untuk Navigasi Instan Bebas Kedip -->
     <ClientRouter />
-    <!-- Leaflet CSS for Maps page -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   </head>
-  <body class="min-h-screen bg-background text-foreground antialiased flex flex-col font-sans pb-24 select-none">
-    <!-- Header App Bar -->
-    <header class="sticky top-0 z-30 bg-card border-b-[3px] border-border px-4 py-3 shadow-[0_3px_0_0_var(--border)]">
-      <div class="max-w-2xl mx-auto flex items-center justify-between">
-        <a href="/" class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-base bg-main border-2 border-border flex items-center justify-center font-black text-base shadow-[2px_2px_0_0_var(--border)]">
-            🩺
+
+  <body class="min-h-dvh bg-background font-sans text-foreground antialiased selection:bg-main selection:text-black">
+    <div class="mx-auto flex min-h-dvh max-w-xl flex-col border-x-0 sm:border-x-[3px] border-border bg-card shadow-2xl relative pb-20">
+      <!-- App Header -->
+      <header class="sticky top-0 z-30 flex items-center justify-between border-b-[3px] border-border bg-main px-4 py-3 shadow-sm">
+        <div class="flex items-center gap-2.5">
+          <div class="flex items-center justify-center w-8 h-8 rounded-base bg-card border-2 border-border shadow-xs">
+            <Stethoscope className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 class="font-heading text-lg font-black leading-none">Device Doctor</h1>
-            <p class="text-[10px] font-data text-muted-foreground mt-0.5">Hardware & Web Diagnostic</p>
+            <h1 class="font-heading text-base font-extrabold leading-none tracking-tight text-black">Device Doctor</h1>
+            <p class="text-[11px] font-bold text-black/70 mt-0.5">Mobile Hardware Diagnostics & AI Lab</p>
           </div>
-        </a>
+        </div>
         <div class="flex items-center gap-2">
-          <span id="net-status" class="dd-btn bg-healthy font-data text-[10px] px-2 py-0.5 font-bold">
-            ● Online
+          <span id="net-status" class="dd-btn px-2.5 py-1 font-data text-xs bg-healthy font-bold">
+            Online
           </span>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <!-- Main Content Area with View Transition Animation -->
-    <main class="flex-1 max-w-2xl w-full mx-auto p-4 flex flex-col gap-4" transition:animate="fade">
-      <slot />
-    </main>
+      <!-- Main Content Area -->
+      <main class="flex-1 p-3.5 sm:p-4">
+        <slot />
+      </main>
 
-    <!-- Bottom Navigation Bar -->
-    <BottomNav client:load currentPath={currentPath} />
+      <!-- Bottom Navigasi Multi-Page Modern -->
+      <BottomNav client:load currentPath={Astro.url.pathname} />
+    </div>
 
-    <!-- Fullscreen Overlay Container for Interactive Tests -->
-    <div id="test-overlay" class="test-overlay" data-active="false" transition:persist></div>
+    <!-- Overlay Test Penuh -->
+    <div
+      id="test-overlay"
+      class="fixed inset-0 z-50 hidden data-[active=true]:block bg-black/80 backdrop-blur-xs select-none touch-none"
+      data-active="false"
+    ></div>
 
-    <script src="/registerSW.js" defer is:inline></script>
+    <script src="/registerSW.js" is:inline></script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 /**
  * Diagnostic tests — 9 test interaktif hardware & Web APIs
- * Didesain responsif, mobile-first, edge-to-edge, dan akurat.
+ * Didesain responsif, mobile-first, edge-to-edge, dan akurat (Full SVG Icons).
  */
 import { $ } from '../dom';
 import { setEntry } from './store';
@@ -92,7 +92,7 @@ function infoLine(box: HTMLElement, html: string) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 1. Layar Sentuh (Edge-to-Edge Grid Touch Matrix ala Service Center)  */
+/* 1. Layar Sentuh (Edge-to-Edge Grid Touch Matrix)                   */
 /* ------------------------------------------------------------------ */
 
 export function startTouchTest() {
@@ -181,7 +181,7 @@ export function startTouchTest() {
 }
 
 /* ------------------------------------------------------------------ */
-/* 2. Dead Pixel (Fullscreen 8 Warna Solid Murni Tanpa Penghalang)    */
+/* 2. Dead Pixel (Fullscreen 8 Warna Solid Murni)                     */
 /* ------------------------------------------------------------------ */
 
 export function startDisplayTest() {
@@ -209,7 +209,7 @@ export function startDisplayTest() {
   bottomBar.className = 'flex items-center justify-between w-full max-w-md mx-auto';
   bottomBar.innerHTML = `
     <button id="dp-prev" class="dd-btn bg-card text-foreground px-3 py-1.5 text-xs font-bold shadow-md">◀ Warna Lalu</button>
-    <button id="dp-done" class="dd-btn bg-healthy text-black px-4 py-1.5 text-xs font-extrabold shadow-md">✓ Selesai Tes</button>
+    <button id="dp-done" class="dd-btn bg-healthy text-black px-4 py-1.5 text-xs font-extrabold shadow-md">Selesai Tes</button>
     <button id="dp-next" class="dd-btn bg-card text-foreground px-3 py-1.5 text-xs font-bold shadow-md">Warna Berikut ▶</button>
   `;
 
@@ -247,7 +247,7 @@ export function startDisplayTest() {
     const { body: vBody } = openOverlay('Hasil Test Dead Pixel');
     infoLine(vBody, 'Apakah kamu melihat titik hitam, titik warna macet, garis vertikal, atau noda (burn-in) selama pergantian 8 warna?');
     verdictButtons(vBody, {
-      pass: 'Layar Bersih & Sempurna',
+      pass: 'Layar Bersih & Normal',
       fail: 'Ada Dead Pixel / Noda',
       onPass: () => finish('display', 'pass', 'Layar bersih tanpa dead pixel di 8 spektrum warna.', '8 warna solid lolos'),
       onFail: () => finish('display', 'fail', 'Terdeteksi anomali dead pixel/stuck pixel pada layar.', 'titik abnormal terdeteksi'),
@@ -299,7 +299,7 @@ export async function startSpeakerTest() {
 
   const go = document.createElement('button');
   go.type = 'button';
-  go.textContent = '🔊 Bunyikan Nada Stereo';
+  go.textContent = 'Putar Nada Stereo';
   go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
   
   go.addEventListener('click', async () => {
@@ -338,7 +338,7 @@ export async function startMicTest() {
 
   const go = document.createElement('button');
   go.type = 'button';
-  go.textContent = '🎤 Aktifkan Mic & Ukur Level';
+  go.textContent = 'Aktifkan Mic & Ukur Level';
   go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
   body.append(go);
 
@@ -409,7 +409,7 @@ export function startCameraTest() {
 
   const go = document.createElement('button');
   go.type = 'button';
-  go.textContent = '📷 Buka Kamera';
+  go.textContent = 'Buka Kamera';
   go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
   body.append(go);
 
@@ -427,7 +427,7 @@ export function startCameraTest() {
 
       const flip = document.createElement('button');
       flip.type = 'button';
-      flip.textContent = facing === 'environment' ? '🤳 Coba Kamera Depan' : '🔄 Coba Kamera Belakang';
+      flip.textContent = facing === 'environment' ? 'Coba Kamera Depan' : 'Coba Kamera Belakang';
       flip.className = 'dd-btn bg-secondary-background px-4 py-2 text-xs font-bold';
       flip.addEventListener('click', () => {
         stream.getTracks().forEach((t) => t.stop());
@@ -472,7 +472,6 @@ export function startVibrateTest() {
     return false;
   };
 
-  // Picu pola awal secara langsung
   const initialResult = doVibrate([500, 150, 500, 150, 800]);
 
   const { body } = openOverlay('Test Motor Getaran HP (Haptic)');
@@ -482,11 +481,11 @@ export function startVibrateTest() {
   statusBox.innerHTML = `
     <div class="flex justify-between">
       <span>API Support:</span>
-      <span class="font-bold ${hasVibrate ? 'text-healthy' : 'text-critical'}">${hasVibrate ? '✓ navigator.vibrate Didukung' : '✕ Tidak Ada di Browser Ini'}</span>
+      <span class="font-bold ${hasVibrate ? 'text-healthy' : 'text-critical'}">${hasVibrate ? 'navigator.vibrate Didukung' : 'Tidak Ada di Browser Ini'}</span>
     </div>
     <div class="flex justify-between">
       <span>Return Status Eksekusi:</span>
-      <span class="font-bold ${initialResult ? 'text-healthy' : 'text-attention'}">${initialResult ? '✓ Sinyal Diterima Kernel' : 'Sinyal Dikirim (Return: false/void)'}</span>
+      <span class="font-bold ${initialResult ? 'text-healthy' : 'text-attention'}">${initialResult ? 'Sinyal Diterima Kernel' : 'Sinyal Dikirim (Kernel Return: false/void)'}</span>
     </div>
   `;
   body.append(statusBox);
@@ -497,16 +496,16 @@ export function startVibrateTest() {
   patternGrid.className = 'grid grid-cols-2 gap-2 w-full max-w-xs';
   patternGrid.innerHTML = `
     <button id="vibe-long" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
-      📳 Getar Panjang (1 Detik)
+      Getar Panjang (1 Detik)
     </button>
     <button id="vibe-burst" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
-      ⚡ Pola Burst (3x Cepat)
+      Pola Burst (3x Cepat)
     </button>
     <button id="vibe-sos" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
-      🆘 Pola SOS Haptic
+      Pola SOS Haptic
     </button>
     <button id="vibe-pulse" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
-      💓 Denyut Jantung
+      Denyut Jantung
     </button>
   `;
   body.append(patternGrid);
@@ -530,7 +529,7 @@ export function startVibrateTest() {
 
   const pocoNote = document.createElement('p');
   pocoNote.className = 'text-[11px] text-muted-foreground p-2.5 bg-card rounded-base border border-dashed border-border leading-relaxed text-center';
-  pocoNote.innerHTML = `💡 <i>Tips Xiaomi / POCO / Android:</i> Pastikan <b>"Umpan Balik Haptik / Getaran Sentuh"</b> di <i>Setelan &gt; Suara &amp; Getaran</i> HP kamu dalam kondisi aktif & level getaran dinaikkan.`;
+  pocoNote.innerHTML = `Tips Xiaomi / POCO / Android: Pastikan <b>"Umpan Balik Haptik / Getaran Sentuh"</b> di <i>Setelan &gt; Suara &amp; Getaran</i> HP kamu dalam kondisi aktif & level getaran dinaikkan.`;
   body.append(pocoNote);
 
   verdictButtons(body, {
@@ -594,7 +593,7 @@ export function startBenchmark() {
 
   const go = document.createElement('button');
   go.type = 'button';
-  go.textContent = '⚡ Mulai Stress Test';
+  go.textContent = 'Mulai Stress Test';
   go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
   body.append(go);
 
@@ -650,7 +649,7 @@ export function startGpsTest() {
 
   const go = document.createElement('button');
   go.type = 'button';
-  go.textContent = '🛰️ Kunci Sinyal GPS';
+  go.textContent = 'Kunci Sinyal GPS';
   go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
   body.append(go);
 

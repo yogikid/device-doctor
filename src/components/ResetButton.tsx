@@ -1,18 +1,19 @@
-import { Button } from '@/components/ui/button';
-import { resetSession } from '@/lib/diagnostics/store';
+import React from 'react';
+import { Trash2 } from 'lucide-react';
 
-/** Tombol reset sesi — island kecil, di-hydrate pas kelihatan. */
-export default function ResetButton() {
-  return (
-    <Button
-      variant="neutral"
-      size="sm"
-      onClick={() => {
-        resetSession();
-        window.dispatchEvent(new CustomEvent('dd:reset'));
-      }}
-    >
-      🗑️ Mulai Sesi Baru
-    </Button>
-  );
+interface Props {
+  onReset: () => void;
 }
+
+export const ResetButton: React.FC<Props> = ({ onReset }) => {
+  return (
+    <button
+      type="button"
+      onClick={onReset}
+      className="dd-btn flex items-center justify-center gap-1.5 border-critical bg-critical/15 px-3 py-2 text-xs font-extrabold text-critical hover:bg-critical/25"
+    >
+      <Trash2 className="w-3.5 h-3.5" />
+      <span>Reset Semua Hasil</span>
+    </button>
+  );
+};

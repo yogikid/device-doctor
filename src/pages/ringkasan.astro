@@ -9,11 +9,17 @@ import {
   AlertTriangle, 
   XCircle, 
   Send,
-  Bot
+  Bot,
+  Stethoscope,
+  FileCode
 } from 'lucide-react';
 ---
 
-<BaseLayout title="Ringkasan & AI Diagnosa · Device Doctor" description="Rangkuman status kesehatan perangkat, konsultasi AI Dokter Device, dan ekspor laporan diagnostik.">
+<BaseLayout 
+  title="Ringkasan Kesehatan & Diagnosa AI · Device Doctor" 
+  description="Rangkuman status kesehatan hardware smartphone, analisis komprehensif didukung AI Grok 4.6, dan konsultasi interaktif bersama Dokter Device."
+  keywords="analisis kesehatan hp, diagnosa hardware smartphone, ai dokter device, grok ai smartphone review, ekspor laporan hp bekas"
+>
   <div class="flex flex-col gap-4">
     <!-- Header Card -->
     <div class="dd-card p-4 bg-card flex flex-col gap-2" data-accent="neutral">
@@ -67,7 +73,7 @@ import {
         </button>
       </div>
 
-      <!-- Streaming / Formatted HTML Output Area -->
+      <!-- Formatted Output Area (Rendered Markdown) -->
       <div
         id="ai-analysis-box"
         class="min-h-[120px] p-3.5 bg-secondary-background rounded-base border-2 border-border font-sans text-xs leading-relaxed text-foreground flex flex-col justify-center"
@@ -76,7 +82,7 @@ import {
           <Sparkles className="w-6 h-6 text-muted-foreground/60" />
           <p>Klik tombol <b>"Minta Analisis AI"</b> untuk mendapatkan ulasan kondisi HP kamu dari Grok 4.6.</p>
         </div>
-        <div id="ai-content" class="hidden prose prose-sm max-w-none prose-headings:font-heading prose-headings:font-bold prose-h2:text-base prose-h2:border-b-2 prose-h2:border-border/40 prose-h2:pb-1 prose-h3:text-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ul:pl-4 prose-li:my-0.5"></div>
+        <div id="ai-content" class="hidden prose prose-sm max-w-none text-foreground prose-headings:font-heading prose-headings:font-extrabold prose-h2:text-base prose-h2:border-b-2 prose-h2:border-border/40 prose-h2:pb-1 prose-h2:mt-3 prose-h3:text-sm prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ul:pl-5 prose-li:my-0.5 prose-strong:text-primary"></div>
       </div>
     </div>
 
@@ -95,7 +101,9 @@ import {
       <!-- Chat History Stream -->
       <div id="chat-stream" class="flex flex-col gap-2.5 max-h-80 overflow-y-auto p-2 bg-secondary-background rounded-base border-2 border-border text-xs">
         <div class="flex gap-2 items-start bg-card p-2.5 rounded-base border-2 border-border shadow-xs">
-          <div class="p-1 rounded bg-main border border-border text-[10px] font-bold">🩺</div>
+          <div class="p-1.5 rounded bg-main border border-border flex items-center justify-center">
+            <Stethoscope className="w-3.5 h-3.5 text-primary" />
+          </div>
           <div class="leading-relaxed">
             <b>Dokter Device:</b> Halo! Saya sudah membaca seluruh data spesifikasi dan hasil pengujian HP kamu. Ada yang ingin kamu tanyakan mengenai kondisi fisik atau performa hardware perangkatmu?
           </div>
@@ -125,6 +133,7 @@ import {
           <span>Unduh JSON</span>
         </button>
         <button id="btn-export-md" class="dd-btn bg-secondary-background px-3 py-2 text-xs font-bold flex items-center gap-1.5">
+          <FileCode className="w-3.5 h-3.5" />
           <span>Salin Markdown</span>
         </button>
       </div>
@@ -201,15 +210,15 @@ import {
 
         const userBubble = document.createElement('div');
         userBubble.className = 'flex gap-2 items-start bg-main p-2.5 rounded-base border-2 border-border shadow-xs self-end max-w-[85%]';
-        userBubble.innerHTML = `<div class="leading-relaxed"><b>Kamu:</b> ${q}</div>`;
+        userBubble.innerHTML = `<div class="leading-relaxed font-sans"><b>Kamu:</b> ${q}</div>`;
         chatStream?.append(userBubble);
         chatHistory.push({ role: 'user', content: q });
 
         const aiBubble = document.createElement('div');
         aiBubble.className = 'flex gap-2 items-start bg-card p-2.5 rounded-base border-2 border-border shadow-xs max-w-[90%]';
         aiBubble.innerHTML = `
-          <div class="p-1 rounded bg-main border border-border text-[10px] font-bold">🩺</div>
-          <div class="ai-text leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ul:pl-4"><span class="animate-pulse">Mengetik jawaban…</span></div>
+          <div class="p-1 rounded bg-main border border-border text-[10px] font-bold shrink-0">🩺</div>
+          <div class="ai-text leading-relaxed prose prose-sm max-w-none text-foreground prose-p:my-1 prose-ul:my-1 prose-ul:pl-4 prose-strong:text-primary"><span class="animate-pulse">Mengetik jawaban…</span></div>
         `;
         chatStream?.append(aiBubble);
         chatStream?.scrollTo({ top: chatStream.scrollHeight, behavior: 'smooth' });

@@ -1,27 +1,22 @@
 /**
  * Cloudflare Worker entry.
  *
- * Tiga tugas:
- *  1. Serve static assets hasil `astro build` (binding ASSETS).
- *  2. Endpoint /api/ip: Multi-source IP & Network lookup (Cloudflare Edge request.cf + ipapi.co / ipwho.is fallback).
- *  3. Proxy ke gateway AI (9Router) untuk /api/ai/* — API key TETAP di server.
+ * Endpoint /api/ai proxy langsung ke https://ai.gimita.id/v1
+ * dengan API key dan model Grok 4.6 yang sudah di-hardcode di server.
  */
 
 interface Env {
   ASSETS: Fetcher;
-  AI_API_KEY: string;
-  AI_BASE_URL?: string;
-  AI_MODEL?: string;
 }
 
-const DEFAULT_BASE = 'http://163-172-110-146.rev.poneytelecom.eu:1047/v1';
-const DEFAULT_MODEL = 'gcli/grok-4.6-xhigh';
+const AI_BASE_URL = 'https://ai.gimita.id/v1';
+const AI_API_KEY = 'sk-2ba05e607c7dff5c-zhagyv-66f0cc14';
+const AI_MODEL = 'gcli/grok-4.6-xhigh';
 
-const SYSTEM_ANALYZE = `Kamu "Dokter Device" — analis hardware dan spesifikasi HP profesional, jujur, membumi, dan berwawasan teknis mendalam. Kamu menjawab dalam Bahasa Indonesia santai tapi sangat kredibel dan presisi.
+const SYSTEM_ANALYZE = `Kamu "Dokter Device" — analis hardware dan spesifikasi HP profesional, jujur, membumi, dan berwawasan teknis mendalam.
+Kamu menerima data RAG lengkap dari browser user yang berisi seluruh detail hardware, jaringan IP/ISP, sensor, dan hasil tes fisik.
 
-Data RAG spesifikasi perangkat dan hasil tes sudah disediakan di prompt. Analisis secara holistik.
-
-FORMAT JAWABAN (Markdown rapi & padat):
+FORMAT JAWABAN (Gunakan Markdown terstruktur standar):
 ## Ringkasan Eksekutif
 2-3 kalimat kondisi umum perangkat dan identitas hardware utama.
 
@@ -47,7 +42,7 @@ PENTING:
   * Storage kuota origin, Sensor (Gyro, Akselerometer, NFC, Bluetooth), Codec (AV1, HEVC), dll.
   * Hasil Test Fisik (Layar sentuh, dead pixel, speaker, mic, getar, benchmark Pts, GPS)
 - JANGAN PERNAH meminta user mengirimkan JSON snapshot atau menyuruh user kirim data lagi, karena kamu SUDAH MEMEGANG DATANYA di memory prompt kamu!
-- Jawablah langsung dengan jelas, akurat, santai, dan bersahabat dalam Bahasa Indonesia.`;
+- Jawablah langsung dengan jelas, akurat, santai, dan bersahabat dalam Bahasa Indonesia menggunakan Markdown yang rapi.`;
 
 function cors(extra: Record<string, string> = {}): Record<string, string> {
   return {
@@ -58,17 +53,14 @@ function cors(extra: Record<string, string> = {}): Record<string, string> {
   };
 }
 
-async function callAI(env: Env, messages: unknown[], maxTokens: number): Promise<Response> {
-  const base = env.AI_BASE_URL || DEFAULT_BASE;
-  const model = env.AI_MODEL || DEFAULT_MODEL;
-
-  const upstream = await fetch(`${base}/chat/completions`, {
+async function callAI(messages: unknown[], maxTokens: number): Promise<Response> {
+  const upstream = await fetch(`${AI_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${env.AI_API_KEY}`,
+      Authorization: `Bearer ${AI_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ model, messages, stream: true, max_tokens: maxTokens }),
+    body: JSON.stringify({ model: AI_MODEL, messages, stream: true, max_tokens: maxTokens }),
   });
 
   if (!upstream.ok || !upstream.body) {
@@ -108,7 +100,7 @@ async function callAI(env: Env, messages: unknown[], maxTokens: number): Promise
               const delta = json?.choices?.[0]?.delta?.content;
               if (typeof delta === 'string' && delta) controller.enqueue(encoder.encode(delta));
             } catch {
-              /* chunk belum lengkap */
+              /* chunk parsial */
             }
           }
         }
@@ -133,7 +125,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // 1. Endpoint /api/ip: Detail IP publik, ASN, ISP, Organisasi, dan Lokasi Edge
+    // 1. Endpoint /api/ip
     if (url.pathname === '/api/ip') {
       if (request.method === 'OPTIONS') {
         return new Response(null, { status: 204, headers: cors() });
@@ -149,7 +141,6 @@ export default {
       let region = cf.region || '—';
       let country = cf.country || '—';
 
-      // Fallback jika Cloudflare Edge tidak memberikan data ISP/ASN lengkap
       if (isp === '—' || asn === '—') {
         try {
           const extRes = await fetch(`https://ipwho.is/${clientIp}`, { signal: AbortSignal.timeout(2500) });
@@ -165,7 +156,7 @@ export default {
             }
           }
         } catch {
-          /* fallback diam */
+          /* fallback */
         }
       }
 
@@ -192,8 +183,8 @@ export default {
       });
     }
 
-    // 2. Endpoints AI (/api/ai/analyze dan /api/ai/chat)
-    if (url.pathname.startsWith('/api/ai/')) {
+    // 2. Endpoint /api/ai (Menerima POST analyze & chat terpadu)
+    if (url.pathname === '/api/ai' || url.pathname.startsWith('/api/ai/')) {
       if (request.method === 'OPTIONS') {
         return new Response(null, { status: 204, headers: cors() });
       }
@@ -203,14 +194,8 @@ export default {
           headers: cors({ 'Content-Type': 'application/json' }),
         });
       }
-      if (!env.AI_API_KEY) {
-        return new Response(
-          JSON.stringify({ error: 'Fitur AI belum dikonfigurasi di server (AI_API_KEY kosong).' }),
-          { status: 503, headers: cors({ 'Content-Type': 'application/json' }) },
-        );
-      }
 
-      let body: { snapshot?: unknown; question?: string; history?: unknown[] };
+      let body: { snapshot?: unknown; question?: string; history?: unknown[]; mode?: 'analyze' | 'chat' };
       try {
         body = (await request.json()) as typeof body;
       } catch {
@@ -220,20 +205,20 @@ export default {
         });
       }
 
-      const snapshot = JSON.stringify(body.snapshot ?? {}, null, 2).slice(0, 20000);
+      const snapshot = JSON.stringify(body.snapshot ?? {}, null, 2).slice(0, 25000);
+      const isChat = body.mode === 'chat' || !!body.question || url.pathname.endsWith('/chat');
 
-      if (url.pathname === '/api/ai/analyze') {
+      if (!isChat) {
+        // Mode Analisis Diagnosa
         return callAI(
-          env,
           [
             { role: 'system', content: SYSTEM_ANALYZE },
-            { role: 'user', content: `Berikut adalah Data RAG Spesifikasi Perangkat & Hasil Pengujian Diagnostik Lengkap:\n${snapshot}\n\nLakukan analisis menyeluruh dan berikan diagnosa komprehensif.` },
+            { role: 'user', content: `Berikut adalah Data RAG Spesifikasi Perangkat & Hasil Pengujian Diagnostik Lengkap (JSON):\n${snapshot}\n\nLakukan analisis menyeluruh dan berikan diagnosa komprehensif.` },
           ],
           1800,
         );
-      }
-
-      if (url.pathname === '/api/ai/chat') {
+      } else {
+        // Mode Konsultasi Chat
         const question = String(body.question ?? '').slice(0, 1500);
         if (!question) {
           return new Response(JSON.stringify({ error: 'Pertanyaan kosong.' }), {
@@ -243,7 +228,6 @@ export default {
         }
         const history = Array.isArray(body.history) ? body.history.slice(-6) : [];
         return callAI(
-          env,
           [
             { role: 'system', content: `${SYSTEM_CHAT}\n\n[DATA RAG SPESIFIKASI & DIAGNOSTIK DEVICE USER]:\n${snapshot}` },
             ...history,
@@ -252,11 +236,6 @@ export default {
           1200,
         );
       }
-
-      return new Response(JSON.stringify({ error: 'Endpoint tidak dikenal.' }), {
-        status: 404,
-        headers: cors({ 'Content-Type': 'application/json' }),
-      });
     }
 
     return env.ASSETS.fetch(request);
