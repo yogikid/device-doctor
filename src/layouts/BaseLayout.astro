@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import BottomNav from '@/components/BottomNav.tsx';
+import { ChromiumNoticeModal } from '@/components/ChromiumNoticeModal.tsx';
 import { ClientRouter } from 'astro:transitions';
 
 interface Props {
@@ -157,6 +158,9 @@ const structuredData = {
 
       <!-- Bottom Navigasi Multi-Page yang Ter-PIN Sempurna di Bawah (Floating Desktop & Fixed Mobile) -->
       <BottomNav client:load currentPath={Astro.url.pathname} />
+
+      <!-- Custom Alert Modal Chromium Recommendation -->
+      <ChromiumNoticeModal client:load />
     </div>
 
     <!-- Overlay Test Penuh -->

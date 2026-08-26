@@ -105,16 +105,19 @@ export function collectGpu(): Row[] {
   return rows;
 }
 
-/** Sensor & Input Hardware */
+/** Sensor & Input Hardware (Chromium Deep Capabilities) */
 export function collectSensors(): Row[] {
   const rows: Row[] = [];
   rows.push(['Gyroscope & Accelerometer', 'DeviceOrientationEvent' in window ? '✓ Tersedia di Hardware' : '✕ Tidak didukung']);
   rows.push(['Multi-Touch Screen', navigator.maxTouchPoints > 0 ? `✓ Mendukung (${navigator.maxTouchPoints} Titik)` : '✕ Single Touch / Mouse']);
   rows.push(['Motor Getar (Haptic Engine)', 'vibrate' in navigator ? '✓ Tersedia (Vibration API)' : '✕ Tidak didukung']);
-  rows.push(['Ambient Light Sensor', 'AmbientLightSensor' in window ? '✓ Sensor Cahaya Aktif' : '✕ Tidak di-expose browser']);
-  rows.push(['Magnetometer / Kompas', 'Magnetometer' in window ? '✓ Sensor Kompas Tersedia' : '✕ Tidak di-expose browser']);
+  rows.push(['Screen Wake Lock API', 'wakeLock' in navigator ? '✓ Layar Siaga Otomatis' : '✕ Tidak didukung']);
+  rows.push(['WebHID (Hardware Input)', 'hid' in navigator ? '✓ Mendukung Aksesoris USB' : '✕ Nonaktif']);
+  rows.push(['WebUSB (Direct Hardware)', 'usb' in navigator ? '✓ Mendukung USB Direct' : '✕ Nonaktif']);
+  rows.push(['WebSerial (IoT Controller)', 'serial' in navigator ? '✓ Mendukung Port Serial' : '✕ Nonaktif']);
   rows.push(['Gamepad Controller API', 'getGamepads' in navigator ? '✓ Mendukung Stik Konsol' : '✕ Tidak']);
   rows.push(['Web Bluetooth API', 'bluetooth' in navigator ? '✓ Mendukung BLE' : '✕ Nonaktif']);
+  rows.push(['Web NFC (Kartu E-Money)', 'NDEFReader' in window ? '✓ Hardware NFC Terdeteksi' : '✕ Tidak di-expose browser']);
   return rows;
 }
 
@@ -135,6 +138,8 @@ export function collectAudioMedia(): Row[] {
   }
   rows.push(['Input Mikrofon & Kamera', 'mediaDevices' in navigator ? '✓ Mendukung (MediaStream)' : '✕ Tidak']);
   rows.push(['Media Recorder (Perekam)', 'MediaRecorder' in window ? '✓ Mendukung Rekam Audio/Video' : '✕ Tidak']);
+  rows.push(['Speech Synthesis (TTS)', 'speechSynthesis' in window ? '✓ Web Speech Engine Aktif' : '✕ Tidak']);
+  rows.push(['Speech Recognition (STT)', 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? '✓ Dictation Mic Aktif' : '✕ Tidak']);
   return rows;
 }
 
@@ -154,14 +159,16 @@ export function collectCodecs(): Row[] {
   return rows;
 }
 
-/** Browser Engine & Fitur Modern */
+/** Browser Engine & Fitur Modern (Chromium Advanced APIs) */
 export function collectWebCapabilities(): Row[] {
   const rows: Row[] = [];
   rows.push(['Service Worker (PWA Offline)', 'serviceWorker' in navigator ? '✓ Mendukung Penuh' : '✕ Tidak']);
   rows.push(['WebGL 2.0 3D Acceleration', hasWebGL2() ? '✓ Aktif' : '✕ Tidak']);
   rows.push(['Next-Gen WebGPU', 'gpu' in navigator ? '✓ Didukung Browser' : '✕ Belum diaktifkan']);
-  rows.push(['WebAssembly (WASM)', typeof WebAssembly === 'object' ? '✓ Didukung Penuh' : '✕ Tidak']);
+  rows.push(['WebAssembly (WASM SIMD)', typeof WebAssembly === 'object' ? '✓ Didukung Penuh' : '✕ Tidak']);
   rows.push(['Biometrik / WebAuthn FIDO2', window.PublicKeyCredential ? '✓ Mendukung Fingerprint/Passkey' : '✕ Tidak']);
+  rows.push(['Web Share Target API', 'share' in navigator ? '✓ Native Mobile Share Aktif' : '✕ Tidak']);
+  rows.push(['Async Clipboard API', 'clipboard' in navigator ? '✓ Akses Papan Klip Aman' : '✕ Tidak']);
   rows.push(['Konteks Keamanan (HTTPS)', window.isSecureContext ? '✓ Secure Context Terverifikasi' : '✕ Tidak aman']);
   return rows;
 }
