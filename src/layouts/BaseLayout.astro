@@ -122,14 +122,14 @@ const structuredData = {
     <ClientRouter />
   </head>
 
-  <!-- Background Berpola Grid Retro Halus yang Transparan & Alami -->
-  <body class="min-h-dvh bg-background text-foreground antialiased selection:bg-main selection:text-black [background-size:24px_24px] [background-image:linear-gradient(to_right,#0000000a_1px,transparent_1px),linear-gradient(to_bottom,#0000000a_1px,transparent_1px)]">
+  <!-- Background Canvas: Warna Soft Sage Mist (#edf2ed) dengan Pola Kotak-Kotak Retro (16px x 16px) Terlihat Jelas -->
+  <body class="min-h-dvh bg-[#edf2ed] text-foreground antialiased selection:bg-main selection:text-black [background-size:16px_16px] [background-image:linear-gradient(to_right,rgba(38,36,31,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(38,36,31,0.08)_1px,transparent_1px)] py-0 md:py-6 px-0 md:px-6">
     
-    <!-- Outer Container yang 100% Responsif Fluida Menyesuaikan Ukuran Device Apapun -->
-    <div class="mx-auto flex min-h-dvh w-full max-w-7xl flex-col bg-card/95 backdrop-blur-xs border-x-0 md:border-x-[3px] border-border shadow-2xl relative pb-24 transition-all duration-200">
+    <!-- Outer App Wrapper yang Memiliki Batas Jelas, Mewah & Responsif -->
+    <div class="mx-auto flex min-h-dvh md:min-h-[92vh] w-full max-w-7xl flex-col bg-transparent md:bg-card/40 md:backdrop-blur-md rounded-none md:rounded-base border-0 md:border-[3px] md:border-border md:shadow-[8px_8px_0_0_var(--border)] relative pb-24 transition-all duration-200">
       
       <!-- App Header Responsif -->
-      <header class="sticky top-0 z-30 flex items-center justify-between border-b-[3px] border-border bg-main px-4 sm:px-6 md:px-8 py-3.5 shadow-sm">
+      <header class="sticky top-0 z-30 flex items-center justify-between border-b-[3px] border-border bg-main px-4 sm:px-6 md:px-8 py-3.5 shadow-sm rounded-none md:rounded-t-[1px]">
         <div class="flex items-center gap-3">
           <div class="flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-base bg-card border-2 md:border-[2.5px] border-border shadow-xs shrink-0">
             <svg class="w-5 h-5 md:w-6 md:h-6 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -150,12 +150,12 @@ const structuredData = {
         </div>
       </header>
 
-      <!-- Main Content Area: Grid Fluida yang Ramping di HP dan Melebar Elegan di Tablet/Desktop -->
+      <!-- Main Content Area: Kartu-Kartu Tetap Cantik di Atas Kanvas Kotak-Kotak -->
       <main class="flex-1 p-3.5 sm:p-6 md:p-8 lg:p-10 w-full">
         <slot />
       </main>
 
-      <!-- Bottom Navigasi Multi-Page Modern -->
+      <!-- Bottom Navigasi Multi-Page yang Ter-PIN Sempurna di Bawah (Floating Desktop & Fixed Mobile) -->
       <BottomNav client:load currentPath={Astro.url.pathname} />
     </div>
 
