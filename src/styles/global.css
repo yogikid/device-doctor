@@ -150,6 +150,7 @@
   inset: 0;
   z-index: 100;
   background: var(--background);
+  display: none; /* tersembunyi sampai test aktif */
 }
 .test-overlay[data-active='true'] {
   display: block;
