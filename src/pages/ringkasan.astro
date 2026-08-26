@@ -164,121 +164,123 @@ import {
       if (fEl) fEl.textContent = String(fail);
     }
 
-    // AI Analysis Trigger
-    const btnAnalyze = document.getElementById('btn-analyze-ai');
-    const aiPlaceholder = document.getElementById('ai-placeholder');
-    const aiContent = document.getElementById('ai-content');
+    function bindSummaryEvents() {
+      updateTallies();
 
-    btnAnalyze?.addEventListener('click', async () => {
-      if (aiPlaceholder) aiPlaceholder.style.display = 'none';
-      if (aiContent) {
-        aiContent.classList.remove('hidden');
-        aiContent.innerHTML = '<p class="font-data text-xs text-muted-foreground animate-pulse">⏳ Grok 4.6 sedang menganalisis data hardware & kondisi HP kamu…</p>';
-      }
+      const btnAnalyze = document.getElementById('btn-analyze-ai');
+      const aiPlaceholder = document.getElementById('ai-placeholder');
+      const aiContent = document.getElementById('ai-content');
 
-      btnAnalyze.setAttribute('disabled', 'true');
+      btnAnalyze?.addEventListener('click', async () => {
+        if (aiPlaceholder) aiPlaceholder.style.display = 'none';
+        if (aiContent) {
+          aiContent.classList.remove('hidden');
+          aiContent.innerHTML = '<p class="font-data text-xs text-muted-foreground animate-pulse">⏳ Grok 4.6 sedang menganalisis data hardware & kondisi HP kamu…</p>';
+        }
 
-      let fullText = '';
-      await requestAnalysis({
-        onChunk: (chunk: string) => {
-          fullText += chunk;
-          if (aiContent) {
-            aiContent.innerHTML = renderMarkdown(fullText);
+        btnAnalyze.setAttribute('disabled', 'true');
+
+        let fullText = '';
+        await requestAnalysis({
+          onChunk: (chunk: string) => {
+            fullText += chunk;
+            if (aiContent) {
+              aiContent.innerHTML = renderMarkdown(fullText);
+            }
+          },
+          onDone: () => {
+            btnAnalyze.removeAttribute('disabled');
+          },
+          onError: (err: string) => {
+            btnAnalyze.removeAttribute('disabled');
+            if (aiContent) {
+              aiContent.innerHTML = `<p class="text-critical font-bold">${err}</p>`;
+            }
           }
-        },
-        onDone: () => {
-          btnAnalyze.removeAttribute('disabled');
-        },
-        onError: (err: string) => {
-          btnAnalyze.removeAttribute('disabled');
-          if (aiContent) {
-            aiContent.innerHTML = `<p class="text-critical font-bold">${err}</p>`;
+        });
+      });
+
+      const chatForm = document.getElementById('chat-form') as HTMLFormElement | null;
+      const chatInput = document.getElementById('chat-input') as HTMLInputElement | null;
+      const chatStream = document.getElementById('chat-stream');
+      const chatHistory: { role: 'user' | 'assistant'; content: string }[] = [];
+
+      chatForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const q = chatInput?.value?.trim();
+        if (!q) return;
+
+        if (chatInput) chatInput.value = '';
+
+        const userBubble = document.createElement('div');
+        userBubble.className = 'flex gap-2 items-start bg-main p-2.5 rounded-base border-2 border-border shadow-xs self-end max-w-[85%]';
+        userBubble.innerHTML = `<div class="leading-relaxed"><b>Kamu:</b> ${q}</div>`;
+        chatStream?.append(userBubble);
+        chatHistory.push({ role: 'user', content: q });
+
+        const aiBubble = document.createElement('div');
+        aiBubble.className = 'flex gap-2 items-start bg-card p-2.5 rounded-base border-2 border-border shadow-xs max-w-[90%]';
+        aiBubble.innerHTML = `
+          <div class="p-1 rounded bg-main border border-border text-[10px] font-bold">🩺</div>
+          <div class="ai-text leading-relaxed"><span class="animate-pulse">Mengetik jawaban…</span></div>
+        `;
+        chatStream?.append(aiBubble);
+        chatStream?.scrollTo({ top: chatStream.scrollHeight, behavior: 'smooth' });
+
+        const textContainer = aiBubble.querySelector('.ai-text');
+        let replyText = '';
+
+        await requestChat(q, chatHistory, {
+          onChunk: (chunk: string) => {
+            replyText += chunk;
+            if (textContainer) {
+              textContainer.innerHTML = renderMarkdown(replyText);
+            }
+            chatStream?.scrollTo({ top: chatStream.scrollHeight });
+          },
+          onDone: () => {
+            chatHistory.push({ role: 'assistant', content: replyText });
+          },
+          onError: (err: string) => {
+            if (textContainer) {
+              textContainer.innerHTML = `<span class="text-critical font-bold">Gagal: ${err}</span>`;
+            }
           }
+        });
+      });
+
+      document.getElementById('btn-export-json')?.addEventListener('click', () => {
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(getSession(), null, 2));
+        const dl = document.createElement('a');
+        dl.setAttribute('href', dataStr);
+        dl.setAttribute('download', `device-doctor-report-${Date.now()}.json`);
+        dl.click();
+      });
+
+      document.getElementById('btn-export-md')?.addEventListener('click', () => {
+        const s = getSession();
+        let md = `# Laporan Diagnostik Device Doctor\nTanggal: ${new Date().toLocaleString()}\n\n`;
+        md += `| Uji / Komponen | Status | Nilai | Catatan |\n|---|---|---|---|\n`;
+        for (const [k, v] of Object.entries(s.entries)) {
+          md += `| ${k} | ${v.status} | ${v.value ?? '-'} | ${v.note ?? '-'} |\n`;
+        }
+        navigator.clipboard.writeText(md).then(() => {
+          alert('Laporan format Markdown berhasil disalin ke clipboard!');
+        });
+      });
+
+      document.getElementById('btn-reset-all')?.addEventListener('click', () => {
+        if (confirm('Reset semua hasil tes dan mulai ulang dari awal?')) {
+          resetSession();
+          window.location.reload();
         }
       });
-    });
+    }
 
-    // Chat Assistant Trigger
-    const chatForm = document.getElementById('chat-form') as HTMLFormElement | null;
-    const chatInput = document.getElementById('chat-input') as HTMLInputElement | null;
-    const chatStream = document.getElementById('chat-stream');
-    const chatHistory: { role: 'user' | 'assistant'; content: string }[] = [];
-
-    chatForm?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const q = chatInput?.value?.trim();
-      if (!q) return;
-
-      if (chatInput) chatInput.value = '';
-
-      // Append user msg
-      const userBubble = document.createElement('div');
-      userBubble.className = 'flex gap-2 items-start bg-main p-2.5 rounded-base border-2 border-border shadow-xs self-end max-w-[85%]';
-      userBubble.innerHTML = `<div class="leading-relaxed"><b>Kamu:</b> ${q}</div>`;
-      chatStream?.append(userBubble);
-      chatHistory.push({ role: 'user', content: q });
-
-      // Assistant placeholder bubble
-      const aiBubble = document.createElement('div');
-      aiBubble.className = 'flex gap-2 items-start bg-card p-2.5 rounded-base border-2 border-border shadow-xs max-w-[90%]';
-      aiBubble.innerHTML = `
-        <div class="p-1 rounded bg-main border border-border text-[10px] font-bold">🩺</div>
-        <div class="ai-text leading-relaxed"><span class="animate-pulse">Mengetik jawaban…</span></div>
-      `;
-      chatStream?.append(aiBubble);
-      chatStream?.scrollTo({ top: chatStream.scrollHeight, behavior: 'smooth' });
-
-      const textContainer = aiBubble.querySelector('.ai-text');
-      let replyText = '';
-
-      await requestChat(q, chatHistory, {
-        onChunk: (chunk: string) => {
-          replyText += chunk;
-          if (textContainer) {
-            textContainer.innerHTML = renderMarkdown(replyText);
-          }
-          chatStream?.scrollTo({ top: chatStream.scrollHeight });
-        },
-        onDone: () => {
-          chatHistory.push({ role: 'assistant', content: replyText });
-        },
-        onError: (err: string) => {
-          if (textContainer) {
-            textContainer.innerHTML = `<span class="text-critical font-bold">Gagal: ${err}</span>`;
-          }
-        }
-      });
-    });
-
-    // Export Tools
-    document.getElementById('btn-export-json')?.addEventListener('click', () => {
-      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(getSession(), null, 2));
-      const dl = document.createElement('a');
-      dl.setAttribute('href', dataStr);
-      dl.setAttribute('download', `device-doctor-report-${Date.now()}.json`);
-      dl.click();
-    });
-
-    document.getElementById('btn-export-md')?.addEventListener('click', () => {
-      const s = getSession();
-      let md = `# Laporan Diagnostik Device Doctor\nTanggal: ${new Date().toLocaleString()}\n\n`;
-      md += `| Uji / Komponen | Status | Nilai | Catatan |\n|---|---|---|---|\n`;
-      for (const [k, v] of Object.entries(s.entries)) {
-        md += `| ${k} | ${v.status} | ${v.value ?? '-'} | ${v.note ?? '-'} |\n`;
-      }
-      navigator.clipboard.writeText(md).then(() => {
-        alert('Laporan format Markdown berhasil disalin ke clipboard!');
-      });
-    });
-
-    document.getElementById('btn-reset-all')?.addEventListener('click', () => {
-      if (confirm('Reset semua hasil tes dan mulai ulang dari awal?')) {
-        resetSession();
-        window.location.reload();
-      }
+    document.addEventListener('astro:page-load', () => {
+      bindSummaryEvents();
     });
 
     onSession(() => updateTallies());
-    updateTallies();
   </script>
 </BaseLayout>

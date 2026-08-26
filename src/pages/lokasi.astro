@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { MapPin, Navigation, Compass, AlertCircle, RefreshCw } from 'lucide-react';
+import { MapPin, Navigation, Compass, AlertCircle } from 'lucide-react';
 ---
 
 <BaseLayout title="Peta & Sensor GPS · Device Doctor" description="Inspeksi presisi chip GPS, radius akurasi koordinat, dan peta interaktif lokal.">
@@ -80,9 +80,6 @@ import { MapPin, Navigation, Compass, AlertCircle, RefreshCw } from 'lucide-reac
     </div>
   </div>
 
-  <!-- Load Leaflet JS -->
-  <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
   <script>
     import { setEntry } from '@/lib/diagnostics/store';
 
@@ -90,107 +87,116 @@ import { MapPin, Navigation, Compass, AlertCircle, RefreshCw } from 'lucide-reac
     let markerInstance: any = null;
     let circleInstance: any = null;
 
-    const btn = document.getElementById('btn-get-loc');
-    const placeholder = document.getElementById('map-placeholder');
-    const details = document.getElementById('loc-details');
-    const errBox = document.getElementById('loc-err');
-    const latEl = document.getElementById('loc-lat');
-    const lonEl = document.getElementById('loc-lon');
-    const accEl = document.getElementById('loc-acc');
-    const statusEl = document.getElementById('loc-status');
+    function bindLocationEvents() {
+      const btn = document.getElementById('btn-get-loc');
+      const placeholder = document.getElementById('map-placeholder');
+      const details = document.getElementById('loc-details');
+      const errBox = document.getElementById('loc-err');
+      const latEl = document.getElementById('loc-lat');
+      const lonEl = document.getElementById('loc-lon');
+      const accEl = document.getElementById('loc-acc');
+      const statusEl = document.getElementById('loc-status');
 
-    function initLeaflet(lat: number, lon: number, accuracy: number) {
-      if (placeholder) placeholder.style.display = 'none';
-      if (details) details.classList.remove('hidden');
-      if (details) details.classList.add('flex');
-      if (errBox) errBox.classList.add('hidden');
+      function initLeaflet(lat: number, lon: number, accuracy: number) {
+        if (placeholder) placeholder.style.display = 'none';
+        if (details) details.classList.remove('hidden');
+        if (details) details.classList.add('flex');
+        if (errBox) errBox.classList.add('hidden');
 
-      if (latEl) latEl.textContent = lat.toFixed(6);
-      if (lonEl) lonEl.textContent = lon.toFixed(6);
-      if (accEl) accEl.textContent = `± ${accuracy.toFixed(0)} meter`;
-      if (statusEl) {
-        statusEl.textContent = accuracy <= 15 ? 'Presisi Tinggi (GNSS Fix)' : 'Presisi Sedang / Estimasi Jaringan';
-      }
-
-      setEntry('location', {
-        status: accuracy <= 25 ? 'pass' : 'warn',
-        value: `±${accuracy.toFixed(0)}m (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
-        note: `Koordinat GPS terkunci dengan radius akurasi ±${accuracy.toFixed(0)} meter.`,
-      });
-
-      const L = (window as any).L;
-      if (!L) return;
-
-      if (!mapInstance) {
-        mapInstance = L.map('gps-map').setView([lat, lon], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '© OpenStreetMap contributors',
-        }).addTo(mapInstance);
-      } else {
-        mapInstance.setView([lat, lon], 16);
-      }
-
-      if (markerInstance) markerInstance.remove();
-      if (circleInstance) circleInstance.remove();
-
-      // Custom neo-brutalism marker icon
-      const customIcon = L.divIcon({
-        className: 'custom-map-pin',
-        html: '<div style="background:#52B788;border:3px solid #26241F;width:24px;height:24px;border-radius:50%;box-shadow:3px 3px 0 0 #26241F;"></div>',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
-      });
-
-      markerInstance = L.marker([lat, lon], { icon: customIcon }).addTo(mapInstance)
-        .bindPopup(`<b>Posisi HP Kamu</b><br>Akurasi: ±${accuracy.toFixed(0)}m`)
-        .openPopup();
-
-      circleInstance = L.circle([lat, lon], {
-        radius: accuracy,
-        color: '#26241F',
-        weight: 2,
-        fillColor: '#F3D57E',
-        fillOpacity: 0.25,
-      }).addTo(mapInstance);
-
-      mapInstance.invalidateSize();
-    }
-
-    btn?.addEventListener('click', () => {
-      if (!('geolocation' in navigator)) {
-        if (errBox) {
-          errBox.textContent = 'Fitur Geolocation tidak didukung di browser ini.';
-          errBox.classList.remove('hidden');
+        if (latEl) latEl.textContent = lat.toFixed(6);
+        if (lonEl) lonEl.textContent = lon.toFixed(6);
+        if (accEl) accEl.textContent = `± ${accuracy.toFixed(0)} meter`;
+        if (statusEl) {
+          statusEl.textContent = accuracy <= 15 ? 'Presisi Tinggi (GNSS Fix)' : 'Presisi Sedang / Estimasi Jaringan';
         }
-        return;
+
+        setEntry('location', {
+          status: accuracy <= 25 ? 'pass' : 'warn',
+          value: `±${accuracy.toFixed(0)}m (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+          note: `Koordinat GPS terkunci dengan radius akurasi ±${accuracy.toFixed(0)} meter.`,
+        });
+
+        const L = (window as any).L;
+        if (!L) return;
+
+        const mapEl = document.getElementById('gps-map');
+        if (!mapEl) return;
+
+        if (!mapInstance) {
+          mapInstance = L.map('gps-map').setView([lat, lon], 16);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors',
+          }).addTo(mapInstance);
+        } else {
+          mapInstance.setView([lat, lon], 16);
+        }
+
+        if (markerInstance) markerInstance.remove();
+        if (circleInstance) circleInstance.remove();
+
+        const customIcon = L.divIcon({
+          className: 'custom-map-pin',
+          html: '<div style="background:#52B788;border:3px solid #26241F;width:24px;height:24px;border-radius:50%;box-shadow:3px 3px 0 0 #26241F;"></div>',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+
+        markerInstance = L.marker([lat, lon], { icon: customIcon }).addTo(mapInstance)
+          .bindPopup(`<b>Posisi HP Kamu</b><br>Akurasi: ±${accuracy.toFixed(0)}m`)
+          .openPopup();
+
+        circleInstance = L.circle([lat, lon], {
+          radius: accuracy,
+          color: '#26241F',
+          weight: 2,
+          fillColor: '#F3D57E',
+          fillOpacity: 0.25,
+        }).addTo(mapInstance);
+
+        mapInstance.invalidateSize();
       }
 
-      btn.setAttribute('disabled', 'true');
-      btn.innerHTML = '<span>📡 Mencari Kuncian Satelit…</span>';
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          btn.removeAttribute('disabled');
-          btn.innerHTML = '<span>🔄 Perbarui Kuncian Posisi</span>';
-          initLeaflet(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-        },
-        (err) => {
-          btn.removeAttribute('disabled');
-          btn.innerHTML = '<span>🧭 Kunci Posisi & Buka Peta</span>';
+      btn?.addEventListener('click', () => {
+        if (!('geolocation' in navigator)) {
           if (errBox) {
-            errBox.textContent = err.code === err.PERMISSION_DENIED
-              ? 'Izin lokasi ditolak. Buka izin lokasi di address bar browser.'
-              : `Gagal membaca GPS (${err.message}).`;
+            errBox.textContent = 'Fitur Geolocation tidak didukung di browser ini.';
             errBox.classList.remove('hidden');
           }
-          setEntry('location', {
-            status: err.code === err.PERMISSION_DENIED ? 'denied' : 'fail',
-            note: 'Akses lokasi tidak berhasil didapatkan.',
-          });
-        },
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
-      );
+          return;
+        }
+
+        btn.setAttribute('disabled', 'true');
+        btn.innerHTML = '<span>📡 Mencari Kuncian Satelit…</span>';
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            btn.removeAttribute('disabled');
+            btn.innerHTML = '<span>🔄 Perbarui Kuncian Posisi</span>';
+            initLeaflet(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+          },
+          (err) => {
+            btn.removeAttribute('disabled');
+            btn.innerHTML = '<span>🧭 Kunci Posisi & Buka Peta</span>';
+            if (errBox) {
+              errBox.textContent = err.code === err.PERMISSION_DENIED
+                ? 'Izin lokasi ditolak. Buka izin lokasi di address bar browser.'
+                : `Gagal membaca GPS (${err.message}).`;
+              errBox.classList.remove('hidden');
+            }
+            setEntry('location', {
+              status: err.code === err.PERMISSION_DENIED ? 'denied' : 'fail',
+              note: 'Akses lokasi tidak berhasil didapatkan.',
+            });
+          },
+          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+        );
+      });
+    }
+
+    document.addEventListener('astro:page-load', () => {
+      mapInstance = null;
+      bindLocationEvents();
     });
   </script>
 </BaseLayout>

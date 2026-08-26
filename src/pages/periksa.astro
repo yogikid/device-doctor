@@ -10,8 +10,7 @@ import {
   Compass, 
   Zap, 
   Navigation,
-  Play,
-  CheckCircle2
+  Play
 } from 'lucide-react';
 
 const testList = [
@@ -182,6 +181,10 @@ const testList = [
       }
     }
 
+    document.addEventListener('astro:page-load', () => {
+      refreshUi();
+    });
+
     document.addEventListener('click', (e) => {
       const target = e.target instanceof Element ? e.target : null;
       if (!target) return;
@@ -199,6 +202,5 @@ const testList = [
     });
 
     onSession(() => refreshUi());
-    refreshUi();
   </script>
 </BaseLayout>

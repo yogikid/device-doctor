@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import BottomNav from '@/components/BottomNav.tsx';
+import { ClientRouter } from 'astro:transitions';
 
 interface Props {
   title?: string;
@@ -27,6 +28,8 @@ const currentPath = Astro.url.pathname;
     <meta name="theme-color" content="#EDF2ED" />
     <meta name="description" content={description} />
     <title>{title}</title>
+    <!-- Astro ClientRouter for Instant Single-Page Navigation without full page reload -->
+    <ClientRouter />
     <!-- Leaflet CSS for Maps page -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   </head>
@@ -51,8 +54,8 @@ const currentPath = Astro.url.pathname;
       </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 max-w-2xl w-full mx-auto p-4 flex flex-col gap-4">
+    <!-- Main Content Area with View Transition Animation -->
+    <main class="flex-1 max-w-2xl w-full mx-auto p-4 flex flex-col gap-4" transition:animate="fade">
       <slot />
     </main>
 
@@ -60,8 +63,8 @@ const currentPath = Astro.url.pathname;
     <BottomNav client:load currentPath={currentPath} />
 
     <!-- Fullscreen Overlay Container for Interactive Tests -->
-    <div id="test-overlay" class="test-overlay" data-active="false"></div>
+    <div id="test-overlay" class="test-overlay" data-active="false" transition:persist></div>
 
-    <script src="/registerSW.js" defer></script>
+    <script src="/registerSW.js" defer is:inline></script>
   </body>
 </html>

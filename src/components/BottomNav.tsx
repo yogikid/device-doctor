@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { 
   Info, 
   Activity, 
@@ -9,7 +10,23 @@ interface NavProps {
   currentPath: string;
 }
 
-export default function BottomNav({ currentPath }: NavProps) {
+export default function BottomNav({ currentPath: initialPath }: NavProps) {
+  const [currentPath, setCurrentPath] = useState(initialPath);
+
+  useEffect(() => {
+    // Sinkronkan state saat URL berubah via Astro ClientRouter (View Transitions)
+    const updatePath = () => {
+      const p = window.location.pathname.replace(/\/$/, '') || '/';
+      setCurrentPath(p);
+    };
+
+    updatePath();
+    document.addEventListener('astro:page-load', updatePath);
+    return () => {
+      document.removeEventListener('astro:page-load', updatePath);
+    };
+  }, []);
+
   const links = [
     { href: '/', label: 'Spesifikasi', icon: Info, path: '/' },
     { href: '/periksa', label: 'Periksa', icon: Activity, path: '/periksa' },
@@ -22,7 +39,11 @@ export default function BottomNav({ currentPath }: NavProps) {
       <div className="max-w-2xl mx-auto flex items-center justify-around px-2 py-2">
         {links.map((link) => {
           const Icon = link.icon;
-          const isActive = currentPath === link.path;
+          // Normalisasi path agar cocok baik dengan /periksa maupun /periksa/
+          const normCurrent = currentPath.replace(/\/$/, '') || '/';
+          const normLink = link.path.replace(/\/$/, '') || '/';
+          const isActive = normCurrent === normLink;
+          
           return (
             <a
               key={link.href}

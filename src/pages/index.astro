@@ -103,10 +103,10 @@ const specs = [
 
   <script>
     import { initInfoDashboard } from '@/lib/diagnostics/info';
-    document.addEventListener('DOMContentLoaded', () => {
+
+    // Berjalan saat inisialisasi awal maupun saat navigasi SPA (astro:page-load)
+    document.addEventListener('astro:page-load', () => {
       initInfoDashboard();
     });
-    // Fallback jika domready sudah lewat
-    initInfoDashboard();
   </script>
 </BaseLayout>
