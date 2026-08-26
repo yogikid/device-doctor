@@ -10,7 +10,8 @@ import {
   Compass, 
   Zap, 
   Navigation,
-  Play
+  Play,
+  PlayCircle
 } from 'lucide-react';
 
 const tests = [
@@ -32,19 +33,32 @@ const tests = [
   keywords="tes layar hp online, uji dead pixel fullscreen, tes speaker stereo hp, cek getaran poco xiaomi, benchmark hp online"
 >
   <div class="flex flex-col gap-6">
-    <!-- Header Card -->
-    <div class="dd-card p-5 sm:p-6 bg-card flex flex-col gap-2.5" data-accent="neutral">
-      <div class="flex items-center gap-3">
-        <div class="flex items-center justify-center w-11 h-11 rounded-base bg-main border-2 border-border shadow-xs shrink-0">
-          <Touchpad className="w-6 h-6 text-foreground" />
+    <!-- Header Card dengan Tombol Tes Menyeluruh Sekali Klik -->
+    <div class="dd-card p-5 sm:p-6 bg-card flex flex-col gap-4" data-accent="neutral">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-11 h-11 rounded-base bg-main border-2 border-border shadow-xs shrink-0">
+            <Touchpad className="w-6 h-6 text-foreground" />
+          </div>
+          <div>
+            <h2 class="font-heading text-lg sm:text-xl md:text-2xl font-black">Periksa Komponen Fisik</h2>
+            <p class="text-xs sm:text-sm text-muted-foreground">9 rangkaian pengujian interaktif untuk mendeteksi kesehatan hardware.</p>
+          </div>
         </div>
-        <div>
-          <h2 class="font-heading text-lg sm:text-xl md:text-2xl font-black">Periksa Komponen Fisik</h2>
-          <p class="text-xs sm:text-sm text-muted-foreground">9 rangkaian pengujian interaktif untuk mendeteksi kerusakan fisik hardware.</p>
-        </div>
+
+        <!-- Tombol Uji Menyeluruh Sekali Klik -->
+        <button
+          type="button"
+          id="btn-run-all"
+          class="dd-btn bg-signature text-foreground px-5 py-3 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shrink-0 shadow-xs border-[3px] border-border hover:translate-y-[-2px] transition-transform cursor-pointer"
+        >
+          <PlayCircle className="w-5 h-5 text-foreground shrink-0 fill-current" />
+          <span>Mulai Tes Menyeluruh (Auto-Run)</span>
+        </button>
       </div>
-      <p class="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
-        Pilih salah satu komponen di bawah untuk membuka simulasi pengujian layar penuh edge-to-edge.
+
+      <p class="text-xs sm:text-sm text-muted-foreground leading-relaxed border-t-2 border-border/20 pt-3">
+        Gunakan tombol <b>"Mulai Tes Menyeluruh"</b> untuk menguji seluruh 9 komponen secara berurutan otomatis tanpa harus menekan tombol satu per satu, atau pilih komponen di bawah untuk pengujian spesifik.
       </p>
     </div>
 
@@ -73,7 +87,7 @@ const tests = [
               <button
                 type="button"
                 id={`btn-${t.id}`}
-                class="dd-btn bg-main py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 w-full shadow-xs"
+                class="dd-btn bg-main py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 w-full shadow-xs cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-foreground shrink-0 fill-current" />
                 <span>Mulai Uji Coba</span>
@@ -97,8 +111,9 @@ const tests = [
       startMotionTest,
       startBenchmark,
       startGpsTest,
+      runFullTestSuite
     } from '@/lib/diagnostics/tests';
-    import { getSession } from '@/lib/diagnostics/store';
+    import { getSession, onSession } from '@/lib/diagnostics/store';
 
     function updateBadge(id: string, status: string, value?: string) {
       const badge = document.getElementById(`badge-${id}`);
@@ -131,43 +146,46 @@ const tests = [
     }
 
     function bindEvents() {
+      // Inisialisasi awal saat load
       syncAllBadges();
 
+      // Realtime listener dari store (langsung terupdate seketika test selesai tanpa perlu refresh!)
+      onSession(() => {
+        syncAllBadges();
+      });
+
+      // Tombol Tes Menyeluruh Berantai
+      document.getElementById('btn-run-all')?.addEventListener('click', () => {
+        runFullTestSuite();
+      });
+
+      // Tombol Uji Mandiri Tiap Komponen
       document.getElementById('btn-touch')?.addEventListener('click', () => {
         startTouchTest();
-        setTimeout(syncAllBadges, 1000);
       });
       document.getElementById('btn-display')?.addEventListener('click', () => {
         startDisplayTest();
-        setTimeout(syncAllBadges, 1000);
       });
       document.getElementById('btn-speaker')?.addEventListener('click', () => {
         startSpeakerTest();
-        setTimeout(syncAllBadges, 1000);
       });
       document.getElementById('btn-mic')?.addEventListener('click', () => {
         startMicTest();
-        setTimeout(syncAllBadges, 1000);
       });
       document.getElementById('btn-camera')?.addEventListener('click', () => {
         startCameraTest();
-        setTimeout(syncAllBadges, 1000);
       });
       document.getElementById('btn-vibrate')?.addEventListener('click', () => {
         startVibrateTest();
-        setTimeout(syncAllBadges, 1000);
       });
       document.getElementById('btn-motion')?.addEventListener('click', () => {
         startMotionTest();
-        setTimeout(syncAllBadges, 1000);
       });
       document.getElementById('btn-benchmark')?.addEventListener('click', () => {
         startBenchmark();
-        setTimeout(syncAllBadges, 1000);
       });
       document.getElementById('btn-gps')?.addEventListener('click', () => {
         startGpsTest();
-        setTimeout(syncAllBadges, 1000);
       });
     }
 

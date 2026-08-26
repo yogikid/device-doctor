@@ -1,6 +1,6 @@
 /**
  * Diagnostic tests — 9 test interaktif hardware & Web APIs
- * Didesain responsif, mobile-first, edge-to-edge, dan akurat (Full SVG Icons).
+ * Didesain responsif, mobile-first, edge-to-edge, dan mendukung auto-chaining menyeluruh.
  */
 import { $ } from '../dom';
 import { setEntry } from './store';
@@ -47,7 +47,7 @@ function finish(
   status: Status,
   note: string,
   value?: string,
-  after?: () => void,
+  onComplete?: () => void,
 ) {
   setEntry(id, { status, note, value });
   cleanupCurrent();
@@ -57,7 +57,7 @@ function finish(
     ov.innerHTML = '';
     document.documentElement.style.overflow = '';
   }
-  after?.();
+  onComplete?.();
 }
 
 function verdictButtons(
@@ -72,8 +72,8 @@ function verdictButtons(
     b.textContent = label;
     b.className =
       kind === 'pass'
-        ? 'w-full dd-btn bg-healthy py-3 text-sm font-bold text-black'
-        : 'w-full dd-btn bg-critical py-3 text-sm font-bold text-white';
+        ? 'w-full dd-btn bg-healthy py-3 text-sm font-bold text-black cursor-pointer'
+        : 'w-full dd-btn bg-critical py-3 text-sm font-bold text-white cursor-pointer';
     return b;
   };
   const bp = mk(opts.pass, 'pass');
@@ -95,7 +95,7 @@ function infoLine(box: HTMLElement, html: string) {
 /* 1. Layar Sentuh (Edge-to-Edge Grid Touch Matrix)                   */
 /* ------------------------------------------------------------------ */
 
-export function startTouchTest() {
+export function startTouchTest(onComplete?: () => void) {
   const { body } = openOverlay('Test Layar Sentuh', { clean: true });
   
   const cols = 6;
@@ -109,10 +109,10 @@ export function startTouchTest() {
   const topBar = document.createElement('div');
   topBar.className = 'absolute top-3 inset-x-3 z-20 flex items-center justify-between pointer-events-none';
   topBar.innerHTML = `
-    <span class="dd-btn bg-card text-foreground px-3 py-1 text-xs font-data font-bold pointer-events-auto">
+    <span class="dd-btn bg-card text-foreground px-3 py-1 text-xs font-data font-bold pointer-events-auto shadow-md">
       Sentuh Semua Kotak (<span id="touch-counter">0</span>/${total})
     </span>
-    <button id="touch-exit" class="dd-btn bg-secondary-background px-3 py-1 text-xs font-bold pointer-events-auto">
+    <button id="touch-exit" class="dd-btn bg-secondary-background px-3 py-1 text-xs font-bold pointer-events-auto cursor-pointer shadow-md">
       Selesai / Keluar
     </button>
   `;
@@ -141,7 +141,7 @@ export function startTouchTest() {
 
       if (touchedCount === total) {
         setTimeout(() => {
-          finish('touch', 'pass', 'Seluruh area layar sentuh (100% grid) merespons sempurna.', `${total}/${total} blok`);
+          finish('touch', 'pass', 'Seluruh area layar sentuh (100% grid) merespons sempurna.', `${total}/${total} blok`, onComplete);
         }, 300);
       }
     }
@@ -171,9 +171,9 @@ export function startTouchTest() {
   container.querySelector('#touch-exit')?.addEventListener('click', () => {
     const ratio = touchedCount / total;
     if (ratio >= 0.95) {
-      finish('touch', 'pass', `Area layar sentuh responsif (${touchedCount}/${total} kotak).`, `${Math.round(ratio * 100)}% coverage`);
+      finish('touch', 'pass', `Area layar sentuh responsif (${touchedCount}/${total} kotak).`, `${Math.round(ratio * 100)}% coverage`, onComplete);
     } else {
-      finish('touch', 'warn', `Beberapa kotak tidak tersentuh (${touchedCount}/${total}). Cek dead zone pada layar.`, `${Math.round(ratio * 100)}% coverage`);
+      finish('touch', 'warn', `Beberapa kotak tidak tersentuh (${touchedCount}/${total}). Cek dead zone pada layar.`, `${Math.round(ratio * 100)}% coverage`, onComplete);
     }
   });
 
@@ -184,7 +184,7 @@ export function startTouchTest() {
 /* 2. Dead Pixel (Fullscreen 8 Warna Solid Murni)                     */
 /* ------------------------------------------------------------------ */
 
-export function startDisplayTest() {
+export function startDisplayTest(onComplete?: () => void) {
   const { body } = openOverlay('Test Dead Pixel', { clean: true });
   const colors: [string, string][] = [
     ['#FF0000', 'Merah Murni (Red)'],
@@ -208,9 +208,9 @@ export function startDisplayTest() {
   const bottomBar = document.createElement('div');
   bottomBar.className = 'flex items-center justify-between w-full max-w-md mx-auto';
   bottomBar.innerHTML = `
-    <button id="dp-prev" class="dd-btn bg-card text-foreground px-3 py-1.5 text-xs font-bold shadow-md">◀ Warna Lalu</button>
-    <button id="dp-done" class="dd-btn bg-healthy text-black px-4 py-1.5 text-xs font-extrabold shadow-md">Selesai Tes</button>
-    <button id="dp-next" class="dd-btn bg-card text-foreground px-3 py-1.5 text-xs font-bold shadow-md">Warna Berikut ▶</button>
+    <button id="dp-prev" class="dd-btn bg-card text-foreground px-3 py-1.5 text-xs font-bold shadow-md cursor-pointer">◀ Warna Lalu</button>
+    <button id="dp-done" class="dd-btn bg-healthy text-black px-4 py-1.5 text-xs font-extrabold shadow-md cursor-pointer">Selesai Tes</button>
+    <button id="dp-next" class="dd-btn bg-card text-foreground px-3 py-1.5 text-xs font-bold shadow-md cursor-pointer">Warna Berikut ▶</button>
   `;
 
   stage.append(hintBar, bottomBar);
@@ -249,8 +249,8 @@ export function startDisplayTest() {
     verdictButtons(vBody, {
       pass: 'Layar Bersih & Normal',
       fail: 'Ada Dead Pixel / Noda',
-      onPass: () => finish('display', 'pass', 'Layar bersih tanpa dead pixel di 8 spektrum warna.', '8 warna solid lolos'),
-      onFail: () => finish('display', 'fail', 'Terdeteksi anomali dead pixel/stuck pixel pada layar.', 'titik abnormal terdeteksi'),
+      onPass: () => finish('display', 'pass', 'Layar bersih tanpa dead pixel di 8 spektrum warna.', '8 warna solid lolos', onComplete),
+      onFail: () => finish('display', 'fail', 'Terdeteksi anomali dead pixel/stuck pixel pada layar.', 'titik abnormal terdeteksi', onComplete),
     });
   });
 
@@ -261,10 +261,10 @@ export function startDisplayTest() {
 /* 3. Speaker Stereo L & R                                            */
 /* ------------------------------------------------------------------ */
 
-export async function startSpeakerTest() {
+export async function startSpeakerTest(onComplete?: () => void) {
   const { body } = openOverlay('Test Speaker Stereo (Kiri & Kanan)');
   if (!('AudioContext' in window || 'webkitAudioContext' in window)) {
-    finish('speaker', 'unsupported', 'Web Audio API tidak didukung browser ini.');
+    finish('speaker', 'unsupported', 'Web Audio API tidak didukung browser ini.', undefined, onComplete);
     return;
   }
   type AC = typeof AudioContext;
@@ -300,7 +300,7 @@ export async function startSpeakerTest() {
   const go = document.createElement('button');
   go.type = 'button';
   go.textContent = 'Putar Nada Stereo';
-  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
+  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm cursor-pointer shadow-xs';
   
   go.addEventListener('click', async () => {
     await ctx.resume();
@@ -319,8 +319,8 @@ export async function startSpeakerTest() {
     verdictButtons(body, {
       pass: 'Kedua Kanal Bunyi Jelas',
       fail: 'Salah Satu Bisu / Kresek',
-      onPass: () => finish('speaker', 'pass', 'Speaker stereo kiri & kanan berbunyi normal.', 'Stereo L+R OK'),
-      onFail: () => finish('speaker', 'fail', 'Salah satu speaker tidak berbunyi atau terdistorsi.', 'anomali speaker'),
+      onPass: () => finish('speaker', 'pass', 'Speaker stereo kiri & kanan berbunyi normal.', 'Stereo L+R OK', onComplete),
+      onFail: () => finish('speaker', 'fail', 'Salah satu speaker tidak berbunyi atau terdistorsi.', 'anomali speaker', onComplete),
     });
   });
 
@@ -332,14 +332,14 @@ export async function startSpeakerTest() {
 /* 4. Mikrofon Live Decibel Meter                                     */
 /* ------------------------------------------------------------------ */
 
-export async function startMicTest() {
+export async function startMicTest(onComplete?: () => void) {
   const { body } = openOverlay('Test Mikrofon Real-Time');
   infoLine(body, 'Uji sensitivitas input mic HP dengan berbicara atau membuat suara di sekitar perangkat.');
 
   const go = document.createElement('button');
   go.type = 'button';
   go.textContent = 'Aktifkan Mic & Ukur Level';
-  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
+  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm cursor-pointer shadow-xs';
   body.append(go);
 
   go.addEventListener('click', async () => {
@@ -384,8 +384,8 @@ export async function startMicTest() {
       verdictButtons(body, {
         pass: 'Mic Menangkap Suara',
         fail: 'Tidak Ada Input Suara',
-        onPass: () => finish('mic', 'pass', 'Mikrofon berfungsi dan menangkap fluktuasi input suara.', `Peak: ${peakLevel}%`),
-        onFail: () => finish('mic', 'fail', 'Mikrofon tidak merekam input suara apa pun.', 'flat response'),
+        onPass: () => finish('mic', 'pass', 'Mikrofon berfungsi dan menangkap fluktuasi input suara.', `Peak: ${peakLevel}%`, onComplete),
+        onFail: () => finish('mic', 'fail', 'Mikrofon tidak merekam input suara apa pun.', 'flat response', onComplete),
       });
 
       cleanupCurrent = () => {
@@ -394,7 +394,7 @@ export async function startMicTest() {
         void ctx.close();
       };
     } catch {
-      finish('mic', 'denied', 'Izin akses mikrofon ditolak atau device mic sibuk.');
+      finish('mic', 'denied', 'Izin akses mikrofon ditolak atau device mic sibuk.', undefined, onComplete);
     }
   });
 }
@@ -403,14 +403,14 @@ export async function startMicTest() {
 /* 5. Kamera Preview Depan & Belakang                                 */
 /* ------------------------------------------------------------------ */
 
-export function startCameraTest() {
+export function startCameraTest(onComplete?: () => void) {
   const { body } = openOverlay('Test Modul Kamera');
   infoLine(body, 'Memeriksa kejelasan sensor kamera belakang dan depan HP kamu.');
 
   const go = document.createElement('button');
   go.type = 'button';
   go.textContent = 'Buka Kamera';
-  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
+  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm cursor-pointer shadow-xs';
   body.append(go);
 
   const run = async (facing: 'environment' | 'user') => {
@@ -428,7 +428,7 @@ export function startCameraTest() {
       const flip = document.createElement('button');
       flip.type = 'button';
       flip.textContent = facing === 'environment' ? 'Coba Kamera Depan' : 'Coba Kamera Belakang';
-      flip.className = 'dd-btn bg-secondary-background px-4 py-2 text-xs font-bold';
+      flip.className = 'dd-btn bg-secondary-background px-4 py-2 text-xs font-bold cursor-pointer shadow-2xs';
       flip.addEventListener('click', () => {
         stream.getTracks().forEach((t) => t.stop());
         const next = facing === 'environment' ? 'user' : 'environment';
@@ -441,13 +441,13 @@ export function startCameraTest() {
       verdictButtons(body, {
         pass: 'Preview Jernih & Normal',
         fail: 'Kamera Rusak / Gelap',
-        onPass: () => finish('camera', 'pass', `Kamera ${facing === 'user' ? 'depan' : 'belakang'} berfungsi normal.`, 'Stream OK'),
-        onFail: () => finish('camera', 'fail', 'Tampilan kamera gelap atau terjadi distorsi sensor.', 'gangguan optik'),
+        onPass: () => finish('camera', 'pass', `Kamera ${facing === 'user' ? 'depan' : 'belakang'} berfungsi normal.`, 'Stream OK', onComplete),
+        onFail: () => finish('camera', 'fail', 'Tampilan kamera gelap atau terjadi distorsi sensor.', 'gangguan optik', onComplete),
       });
 
       cleanupCurrent = () => stream.getTracks().forEach((t) => t.stop());
     } catch {
-      finish('camera', 'denied', 'Izin kamera ditolak atau tidak ada modul video.');
+      finish('camera', 'denied', 'Izin kamera ditolak atau tidak ada modul video.', undefined, onComplete);
     }
   };
 
@@ -458,7 +458,7 @@ export function startCameraTest() {
 /* 6. Getar (Multi-Pattern Vibration & Diagnostic Suite)              */
 /* ------------------------------------------------------------------ */
 
-export function startVibrateTest() {
+export function startVibrateTest(onComplete?: () => void) {
   const hasVibrate = typeof navigator.vibrate === 'function';
 
   const doVibrate = (pattern: number | number[]) => {
@@ -495,16 +495,16 @@ export function startVibrateTest() {
   const patternGrid = document.createElement('div');
   patternGrid.className = 'grid grid-cols-2 gap-2 w-full max-w-xs';
   patternGrid.innerHTML = `
-    <button id="vibe-long" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
+    <button id="vibe-long" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm cursor-pointer">
       Getar Panjang (1 Detik)
     </button>
-    <button id="vibe-burst" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
+    <button id="vibe-burst" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm cursor-pointer">
       Pola Burst (3x Cepat)
     </button>
-    <button id="vibe-sos" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
+    <button id="vibe-sos" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm cursor-pointer">
       Pola SOS Haptic
     </button>
-    <button id="vibe-pulse" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm">
+    <button id="vibe-pulse" class="dd-btn bg-main py-2 px-3 text-xs font-extrabold shadow-sm cursor-pointer">
       Denyut Jantung
     </button>
   `;
@@ -535,8 +535,8 @@ export function startVibrateTest() {
   verdictButtons(body, {
     pass: 'Getaran Terasa Jelas',
     fail: 'Sama Sekali Tidak Ada Getar',
-    onPass: () => finish('vibrate', 'pass', 'Motor getar / linear haptic motor merespons pola sinyal.', 'Haptic OK'),
-    onFail: () => finish('vibrate', 'fail', 'Getaran tidak terasa. Periksa setelan haptics OS atau kondisi motor fisik HP.', 'tidak ada respon'),
+    onPass: () => finish('vibrate', 'pass', 'Motor getar / linear haptic motor merespons pola sinyal.', 'Haptic OK', onComplete),
+    onFail: () => finish('vibrate', 'fail', 'Getaran tidak terasa. Periksa setelan haptics OS atau kondisi motor fisik HP.', 'tidak ada respon', onComplete),
   });
 }
 
@@ -544,7 +544,7 @@ export function startVibrateTest() {
 /* 7. Sensor Gerak 3D Bubble Level                                    */
 /* ------------------------------------------------------------------ */
 
-export function startMotionTest() {
+export function startMotionTest(onComplete?: () => void) {
   const { body } = openOverlay('Test Sensor Gerak (Gyroscope & Accelerometer)');
   infoLine(body, 'Miringkan HP kamu ke segala arah untuk melihat respons bola leveling.');
 
@@ -576,8 +576,8 @@ export function startMotionTest() {
   verdictButtons(body, {
     pass: 'Sensor Merespons Gerakan',
     fail: 'Sensor Macet / Tidak Gerak',
-    onPass: () => finish('motion', 'pass', 'Sensor Gyroscope merespons orientasi sudut perangkat.', 'Gyro responsive'),
-    onFail: () => finish('motion', 'fail', 'Data orientasi tidak berubah saat HP dimiringkan.', 'orientasi beku'),
+    onPass: () => finish('motion', 'pass', 'Sensor Gyroscope merespons orientasi sudut perangkat.', 'Gyro responsive', onComplete),
+    onFail: () => finish('motion', 'fail', 'Data orientasi tidak berubah saat HP dimiringkan.', 'orientasi beku', onComplete),
   });
 
   cleanupCurrent = () => window.removeEventListener('deviceorientation', onOri);
@@ -587,14 +587,14 @@ export function startMotionTest() {
 /* 8. Benchmark Beban CPU & GPU                                      */
 /* ------------------------------------------------------------------ */
 
-export function startBenchmark() {
+export function startBenchmark(onComplete?: () => void) {
   const { body } = openOverlay('Benchmark Performa CPU & GPU');
-  infoLine(body, 'Menjalankan kalkulasi stress-test matriks floating-point dan rendering partikel selama ±5 detik.');
+  infoLine(body, 'Menjalankan kalkulasi stress-test matriks floating-point dan rendering partikel selama ±4.5 detik.');
 
   const go = document.createElement('button');
   go.type = 'button';
   go.textContent = 'Mulai Stress Test';
-  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
+  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm cursor-pointer shadow-xs';
   body.append(go);
 
   go.addEventListener('click', () => {
@@ -631,7 +631,7 @@ export function startBenchmark() {
       } else {
         const mops = Math.round(ops / (elapsed / 1000) / 1000);
         const score = Math.round(mops * 1.5);
-        finish('benchmark', 'pass', `Skor komputasi: ${score} Pts (~${mops}k ops/detik).`, `${score} Pts`);
+        finish('benchmark', 'pass', `Skor komputasi: ${score} Pts (~${mops}k ops/detik).`, `${score} Pts`, onComplete);
       }
     };
 
@@ -643,19 +643,19 @@ export function startBenchmark() {
 /* 9. GPS Precision Lock                                              */
 /* ------------------------------------------------------------------ */
 
-export function startGpsTest() {
+export function startGpsTest(onComplete?: () => void) {
   const { body } = openOverlay('Test Kuncian GPS & Satelit');
   infoLine(body, 'Mengukur ketelitian radius akurasi posisi GPS chip perangkat kamu.');
 
   const go = document.createElement('button');
   go.type = 'button';
   go.textContent = 'Kunci Sinyal GPS';
-  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
+  go.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm cursor-pointer shadow-xs';
   body.append(go);
 
   go.addEventListener('click', () => {
     if (!('geolocation' in navigator)) {
-      finish('gps', 'unsupported', 'Geolocation tidak didukung browser.');
+      finish('gps', 'unsupported', 'Geolocation tidak didukung browser.', undefined, onComplete);
       return;
     }
 
@@ -668,12 +668,47 @@ export function startGpsTest() {
       (pos) => {
         const { accuracy } = pos.coords;
         const note = accuracy <= 20 ? 'Kuncian presisi tinggi tercapai.' : 'Akurasi longgar (berada di dalam ruangan).';
-        finish('gps', accuracy <= 35 ? 'pass' : 'warn', note, `±${accuracy.toFixed(0)}m`);
+        finish('gps', accuracy <= 35 ? 'pass' : 'warn', note, `±${accuracy.toFixed(0)}m`, onComplete);
       },
       (err) => {
-        finish('gps', 'denied', `GPS gagal dikunci (${err.message}).`);
+        finish('gps', 'denied', `GPS gagal dikunci (${err.message}).`, undefined, onComplete);
       },
       { enableHighAccuracy: true, timeout: 15000 },
     );
   });
+}
+
+/**
+ * Runner Rangkaian Pengujian Menyeluruh (Auto-Sequential Suite Runner)
+ */
+export function runFullTestSuite() {
+  const queue = [
+    startTouchTest,
+    startDisplayTest,
+    startSpeakerTest,
+    startMicTest,
+    startCameraTest,
+    startVibrateTest,
+    startMotionTest,
+    startBenchmark,
+    startGpsTest,
+  ];
+
+  let currentIdx = 0;
+
+  function runNext() {
+    if (currentIdx < queue.length) {
+      const currentTest = queue[currentIdx];
+      currentIdx++;
+      currentTest(() => {
+        // Jeda transisi 300ms antar pengujian agar nyaman
+        setTimeout(runNext, 300);
+      });
+    } else {
+      // Seluruh rangkaian selesai -> lempar ke halaman ringkasan
+      window.location.href = '/ringkasan';
+    }
+  }
+
+  runNext();
 }

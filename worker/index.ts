@@ -13,35 +13,38 @@ const AI_BASE_URL = 'https://ai.gimita.id/v1';
 const AI_API_KEY = 'sk-2ba05e607c7dff5c-zhagyv-66f0cc14';
 const AI_MODEL = 'gcli/grok-4.6-xhigh';
 
-const SYSTEM_ANALYZE = `Kamu "Dokter Device" — analis hardware dan spesifikasi HP profesional, jujur, membumi, dan berwawasan teknis mendalam.
-Kamu menerima data RAG lengkap dari browser user yang berisi seluruh detail hardware, jaringan IP/ISP, sensor, dan hasil tes fisik.
+const SYSTEM_ANALYZE = `Kamu "Dokter Device" — analis hardware, sistem operasi, jaringan edge, dan spesifikasi smartphone profesional, jujur, membumi, dan berwawasan teknis mendalam.
+Kamu menerima data RAG lengkap dari browser user yang berisi seluruh detail hardware, jaringan IP/ISP, sensor, API Chromium, dan hasil tes fisik.
 
 FORMAT JAWABAN (Gunakan Markdown terstruktur standar):
 ## Ringkasan Eksekutif
-2-3 kalimat kondisi umum perangkat dan identitas hardware utama.
+2-3 kalimat kondisi umum perangkat, nama model komersial, chipset, dan kesehatan hardware secara keseluruhan.
 
-## Kekuatan & Kondisi Prima
-Poin-poin komponen yang sehat dan spesifikasi unggulan.
+## Kekuatan & Komponen Prima
+Poin-poin komponen yang sehat, performa tinggi, dan fitur unggulan yang terdeteksi.
 
 ## Temuan & Catatan Khusus
-Catatan komponen yang butuh perhatian atau keterbatasan yang terdeteksi.
+Catatan komponen yang butuh perhatian, sensor yang tidak aktif/dibatasi, atau keterbatasan yang terdeteksi.
 
 ## Rekomendasi Dokter Device
 Saran optimasi praktis, tips perawatan hardware, atau tips verifikasi jika ini HP bekas.`;
 
-const SYSTEM_CHAT = `Kamu "Dokter Device" — partner dan asisten cerdas yang mengetahui SEGALA HAL tentang spesifikasi teknis dan kondisi fisik perangkat user.
+const SYSTEM_CHAT = `Kamu "Dokter Device" — partner, konsultan, dan asisten cerdas yang mengetahui SEGALA HAL tentang spesifikasi teknis dan kondisi fisik perangkat user.
 
-PENTING:
-- Kamu SUDAH DIBEKALI data RAG spesifikasi & diagnosa perangkat user yang nyata pada context.
+PENTING & WAJIB DIINGAT:
+- Kamu MEMILIKI MEMORI PERCAKAPAN MULTI-TURN. Ingat semua pertanyaan dan jawaban sebelumnya dalam sesi obrolan ini!
+- Kamu SUDAH DIBEKALI data RAG spesifikasi & diagnosa perangkat user yang nyata dan super lengkap pada prompt context.
 - BACA LANGSUNG dari data tersebut saat user bertanya tentang:
-  * Alamat IP Publik, ISP Operator, ASN, Kota & Lokasi Jaringan
-  * Hardware Vendor, Hardware Model (Galaxy A14 / POCO / dll), OS Version
-  * Chipset GPU, Vendor Hardware, WebGL2, WebGPU
-  * Layar (Resolusi Aktual, Refresh Rate Hz live, Gamut P3, HDR, DPR)
+  * Alamat IP Publik, ISP Operator (Starlink, Telkom, Indosat, dll), ASN, Kota & Lokasi Jaringan
+  * Hardware Vendor, Hardware Model (Galaxy A14 / POCO / Xiaomi / Apple / dll), OS Version, Arsitektur CPU
+  * Chipset GPU (Adreno / Mali / Apple GPU / Intel / Nvidia), Vendor Hardware, WebGL2, WebGPU Adapter
+  * Layar (Resolusi Aktual, Viewport CSS, Refresh Rate Hz live, Gamut Display-P3, HDR, DPR)
   * CPU Cores, RAM Kapasitas, Battery Level & Charging Status
-  * Storage kuota origin, Sensor (Gyro, Akselerometer, NFC, Bluetooth), Codec (AV1, HEVC), dll.
-  * Hasil Test Fisik (Layar sentuh, dead pixel, speaker, mic, getar, benchmark Pts, GPS)
+  * Storage kuota origin, Persistensi OPFS, Sensor (Gyro, Akselerometer, NFC, Bluetooth, USB, Serial, HID, WakeLock)
+  * Codec Video/Audio Hardware (AV1, HEVC, VP9, H.264, Opus, FLAC)
+  * Hasil Test Fisik (Layar sentuh, dead pixel, speaker stereo L/R, mic, getar haptic, benchmark Pts, GPS satelit)
 - JANGAN PERNAH meminta user mengirimkan JSON snapshot atau menyuruh user kirim data lagi, karena kamu SUDAH MEMEGANG DATANYA di memory prompt kamu!
+- Jika user bertanya kelanjutan atau merujuk ke obrolan sebelumnya ("tadi apa...", "maksud dari saran sebelumnya..."), jawablah secara kontekstual dengan mengingat riwayat obrolan.
 - Jawablah langsung dengan jelas, akurat, santai, dan bersahabat dalam Bahasa Indonesia menggunakan Markdown yang rapi.`;
 
 function cors(extra: Record<string, string> = {}): Record<string, string> {
@@ -195,7 +198,7 @@ export default {
         });
       }
 
-      let body: { snapshot?: unknown; question?: string; history?: unknown[]; mode?: 'analyze' | 'chat' };
+      let body: { snapshot?: unknown; question?: string; history?: { role: string; content: string }[]; mode?: 'analyze' | 'chat' };
       try {
         body = (await request.json()) as typeof body;
       } catch {
@@ -205,7 +208,7 @@ export default {
         });
       }
 
-      const snapshot = JSON.stringify(body.snapshot ?? {}, null, 2).slice(0, 25000);
+      const snapshot = JSON.stringify(body.snapshot ?? {}, null, 2).slice(0, 32000);
       const isChat = body.mode === 'chat' || !!body.question || url.pathname.endsWith('/chat');
 
       if (!isChat) {
@@ -218,22 +221,28 @@ export default {
           1800,
         );
       } else {
-        // Mode Konsultasi Chat
-        const question = String(body.question ?? '').slice(0, 1500);
+        // Mode Konsultasi Chat (Dengan Multi-Turn Memory Lengkap)
+        const question = String(body.question ?? '').slice(0, 2000);
         if (!question) {
           return new Response(JSON.stringify({ error: 'Pertanyaan kosong.' }), {
             status: 400,
             headers: cors({ 'Content-Type': 'application/json' }),
           });
         }
-        const history = Array.isArray(body.history) ? body.history.slice(-6) : [];
+
+        // Format riwayat chat sampai 15 turn terakhir agar percakapan terus diingat
+        const historyMessages = (Array.isArray(body.history) ? body.history.slice(-15) : []).map((m) => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: String(m.content ?? ''),
+        }));
+
         return callAI(
           [
-            { role: 'system', content: `${SYSTEM_CHAT}\n\n[DATA RAG SPESIFIKASI & DIAGNOSTIK DEVICE USER]:\n${snapshot}` },
-            ...history,
+            { role: 'system', content: `${SYSTEM_CHAT}\n\n[DATA RAG SPESIFIKASI & DIAGNOSTIK DEVICE USER LENGKAP]:\n${snapshot}` },
+            ...historyMessages,
             { role: 'user', content: question },
           ],
-          1200,
+          1500,
         );
       }
     }

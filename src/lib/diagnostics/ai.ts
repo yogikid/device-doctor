@@ -26,7 +26,7 @@ const LABEL: Record<string, string> = {
 };
 
 /**
- * Bangun RAG Snapshot Super Lengkap
+ * Bangun RAG Snapshot Super Lengkap (Semua Data Spesifikasi Hardware, Jaringan & Chromium APIs)
  */
 export function buildSnapshot(): Record<string, unknown> {
   const s = getSession();
@@ -49,44 +49,52 @@ export function buildSnapshot(): Record<string, unknown> {
   const dtf = Intl.DateTimeFormat().resolvedOptions();
   const nav = navigator as any;
 
+  const dpr = window.devicePixelRatio || 1;
+  const screenW = Math.round(screen.width * dpr);
+  const screenH = Math.round(screen.height * dpr);
+
   const deepSpecs = {
     identitas_perangkat: {
-      model_terdeteksi: s.entries['device_model']?.value || '—',
-      os_dan_versi: s.entries['device_os']?.value || '—',
-      platform: nav.userAgentData?.platform || nav.platform || '—',
-      browser_brand: s.entries['browser_brand']?.value || '—',
-      kategori_device: s.entries['device_type']?.value || 'Mobile Smartphone',
+      model_terdeteksi: s.entries['device']?.value || '—',
+      catatan_device: s.entries['device']?.note || '—',
+      platform: nav.userAgentData?.platform || nav.platform || 'Android',
+      mobile_flag: nav.userAgentData?.mobile ?? true,
+      user_agent_lengkap: navigator.userAgent,
     },
     jaringan_dan_ip: {
-      ip_publik_dan_isp: s.entries['ip_network']?.value || 'Memuat...',
-      catatan_jaringan: s.entries['ip_network']?.note || '—',
-      status_online: navigator.onLine ? 'Online' : 'Offline',
-      tipe_koneksi: nav.connection?.effectiveType || '—',
-      downlink_est: nav.connection?.downlink ? `${nav.connection.downlink} Mbps` : '—',
-      rtt_latency: nav.connection?.rtt ? `${nav.connection.rtt} ms` : '—',
-      hemat_data: nav.connection?.saveData ? 'Aktif' : 'Nonaktif',
+      ip_publik_dan_isp: s.entries['network_ip']?.value || s.entries['ip_network']?.value || 'Memuat...',
+      catatan_jaringan_lengkap: s.entries['network_ip']?.note || s.entries['ip_network']?.note || '—',
+      status_online: navigator.onLine ? 'Online Terhubung' : 'Offline Terputus',
+      media_transmisi_fisik: s.entries['connection']?.value || 'Wi-Fi / LAN',
+      tipe_koneksi_browser: nav.connection?.effectiveType || '4G/Broadband',
+      downlink_est: nav.connection?.downlink ? `≈ ${nav.connection.downlink} Mbps` : '—',
+      rtt_latency: nav.connection?.rtt ? `≈ ${nav.connection.rtt} ms` : '—',
+      mode_hemat_data: nav.connection?.saveData ? 'Aktif' : 'Nonaktif',
     },
     hardware_dan_cpu: {
-      cpu_cores_threads: nav.hardwareConcurrency ? `${nav.hardwareConcurrency} Core` : '—',
+      cpu_cores_threads: nav.hardwareConcurrency ? `${nav.hardwareConcurrency} Cores` : '—',
       ram_kapasitas_est: nav.deviceMemory ? `≥ ${nav.deviceMemory} GB RAM` : 'Tidak di-expose',
-      max_touch_points: `${navigator.maxTouchPoints ?? 0} Titik Sentuh`,
+      max_touch_points: `${navigator.maxTouchPoints ?? 1} Titik Sentuh`,
       bahasa_browser: navigator.language,
+      daftar_bahasa: navigator.languages?.join(', ') || navigator.language,
     },
     layar_dan_display: {
-      resolusi_aktual: `${screen.width * (window.devicePixelRatio || 1)} × ${screen.height * (window.devicePixelRatio || 1)} px`,
-      viewport_css: `${screen.width} × ${screen.height} px`,
-      pixel_ratio_dpr: `${window.devicePixelRatio || 1}x`,
+      resolusi_fisik_aktual: `${screenW} × ${screenH} px`,
+      viewport_css: `${window.innerWidth} × ${window.innerHeight} px`,
+      pixel_ratio_dpr: `${dpr.toFixed(2)}x Density`,
       color_depth: `${screen.colorDepth || 24}-bit`,
-      hdr_support: matchMedia('(dynamic-range: high)').matches ? 'Ya (HDR Capable)' : 'Tidak (SDR)',
-      color_gamut: matchMedia('(color-gamut: p3)').matches ? 'Display-P3 (Wide Gamut)' : 'sRGB',
-      orientasi: screen.orientation?.type || 'portrait',
+      hdr_support: matchMedia('(dynamic-range: high)').matches ? 'Ya (High Dynamic Range)' : 'SDR Standard',
+      color_gamut: matchMedia('(color-gamut: p3)').matches ? 'Display-P3 (Wide Gamut)' : 'sRGB Standard',
+      orientasi: screen.orientation?.type || (window.innerHeight > window.innerWidth ? 'portrait' : 'landscape'),
       tema_os: matchMedia('(prefers-color-scheme: dark)').matches ? 'Dark Mode' : 'Light Mode',
     },
     gpu_dan_grafis: {
       chipset_renderer: glInfo.renderer,
       vendor_hardware: glInfo.vendor,
-      webgl2_support: glInfo.hasWebGL2 ? 'Didukung' : 'Tidak',
-      webgpu_support: 'gpu' in navigator ? 'Didukung Browser' : 'Belum Didukung',
+      webgl_version: glInfo.version,
+      webgl2_support: glInfo.hasWebGL2 ? 'Aktif & Didukung' : 'Tidak',
+      webgpu_support: 'gpu' in navigator ? 'Didukung Browser' : 'Belum Diaktifkan',
+      max_texture_size: glInfo.maxTexture ? `${glInfo.maxTexture} px` : '—',
     },
     baterai: {
       status_terbaca: s.entries['battery']?.value || '—',
@@ -95,18 +103,28 @@ export function buildSnapshot(): Record<string, unknown> {
     penyimpanan_browser: {
       status_storage: s.entries['storage']?.value || '—',
       catatan_storage: s.entries['storage']?.note || '—',
+      opfs_private_filesystem: 'getDirectory' in (navigator.storage || {}) ? 'Mendukung' : 'Tidak',
+      indexed_db: 'indexedDB' in window ? 'Tersedia' : 'Nonaktif',
     },
-    sensor_dan_radio: {
-      accelerometer: 'Accelerometer' in window || 'DeviceMotionEvent' in window ? 'Tersedia' : 'Tidak',
-      gyroscope: 'Gyroscope' in window || 'DeviceOrientationEvent' in window ? 'Tersedia' : 'Tidak',
-      magnetometer: 'Magnetometer' in window ? 'Tersedia' : 'Tidak',
-      ambient_light: 'AmbientLightSensor' in window ? 'Tersedia' : 'Tidak',
-      vibration_motor: 'vibrate' in navigator ? 'Tersedia' : 'Tidak',
-      bluetooth: 'bluetooth' in navigator ? 'Tersedia' : 'Tidak',
-      nfc: 'NDEFReader' in window ? 'Tersedia' : 'Tidak',
-      usb_otg: 'usb' in navigator ? 'Tersedia' : 'Tidak',
+    sensor_dan_hardware_apis: {
+      gyroscope_accelerometer: 'DeviceOrientationEvent' in window ? 'Tersedia di Hardware' : 'Tidak',
+      vibration_motor: 'vibrate' in navigator ? 'Tersedia (Vibration API)' : 'Tidak',
+      screen_wake_lock: 'wakeLock' in navigator ? 'Mendukung (Wake Lock API)' : 'Tidak',
+      web_nfc: 'NDEFReader' in window ? 'Hardware NFC Terdeteksi' : 'Tidak di-expose browser',
+      web_bluetooth: 'bluetooth' in navigator ? 'Mendukung BLE' : 'Nonaktif',
+      web_usb: 'usb' in navigator ? 'Mendukung WebUSB Direct' : 'Nonaktif',
+      web_serial: 'serial' in navigator ? 'Mendukung Serial Ports' : 'Nonaktif',
+      web_hid: 'hid' in navigator ? 'Mendukung Human Interface Devices' : 'Nonaktif',
+      gamepad_controller: 'getGamepads' in navigator ? 'Mendukung Stik Gamepad' : 'Tidak',
     },
-    memori_js_heap: perfMem,
+    audio_dan_multimedia: {
+      web_audio: 'AudioContext' in window || 'webkitAudioContext' in window ? 'Mendukung AudioContext' : 'Tidak',
+      media_devices: 'mediaDevices' in navigator ? 'Mendukung (Kamera & Mic)' : 'Tidak',
+      media_recorder: 'MediaRecorder' in window ? 'Mendukung Rekam Audio/Video' : 'Tidak',
+      speech_synthesis_tts: 'speechSynthesis' in window ? 'Aktif' : 'Tidak',
+      speech_recognition_stt: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? 'Aktif' : 'Tidak',
+    },
+    memori_js_heap_v8: perfMem,
     waktu_dan_wilayah: {
       timezone: dtf.timeZone,
       locale: dtf.locale,
@@ -114,11 +132,13 @@ export function buildSnapshot(): Record<string, unknown> {
       offset_utc: `${-new Date().getTimezoneOffset() / 60} Jam`,
       jam_lokal: new Date().toLocaleString('id-ID'),
     },
-    keamanan_dan_web: {
+    keamanan_dan_web_features: {
       pwa_mode: matchMedia('(display-mode: standalone)').matches ? 'Standalone App' : 'Browser Tab',
-      service_worker: 'serviceWorker' in navigator ? 'Aktif' : 'Tidak',
-      biometrik_webauthn: window.PublicKeyCredential ? 'Mendukung Fingerprint/Passkey' : 'Tidak',
-      secure_context: window.isSecureContext ? 'HTTPS / Secure' : 'Insecure',
+      service_worker: 'serviceWorker' in navigator ? 'Aktif (Offline Cache)' : 'Tidak',
+      biometrik_webauthn_fido2: window.PublicKeyCredential ? 'Mendukung Fingerprint / Passkey' : 'Tidak',
+      async_clipboard: 'clipboard' in navigator ? 'Akses Clipboard Aman' : 'Tidak',
+      web_share_target: 'share' in navigator ? 'Native Mobile Share Aktif' : 'Tidak',
+      secure_context: window.isSecureContext ? 'HTTPS / Secure Context' : 'Insecure',
     },
   };
 
@@ -130,25 +150,29 @@ export function buildSnapshot(): Record<string, unknown> {
     rag_spesifikasi_lengkap_perangkat: deepSpecs,
     user_agent_mentah: navigator.userAgent,
     panduan_analisis:
-      'Semua data ini dibaca dari browser user. Kamu memiliki seluruh konteks spesifikasi mulai dari Model HP, IP/ISP, CPU, GPU, Layar, Sensor, Storage, hingga Hasil Tes Hardware.',
+      'Semua data ini diinspeksi secara live dari Web APIs perangkat user. Kamu memiliki seluruh konteks spesifikasi mulai dari Model HP, Jaringan/ISP, Chipset CPU & GPU, Display Hz, Sensor, Storage, hingga Hasil Tes Hardware.',
   };
 }
 
 function getWebGLInfo() {
   try {
     const canvas = document.createElement('canvas');
-    const gl = (canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+    const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
     const hasWebGL2 = !!canvas.getContext('webgl2');
-    if (!gl) return { renderer: 'Tidak tersedia', vendor: 'Tidak tersedia', hasWebGL2 };
+    if (!gl) return { renderer: 'Tidak tersedia', vendor: 'Tidak tersedia', hasWebGL2, version: 'None' };
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-    if (!dbg) return { renderer: 'Di-masking browser', vendor: 'Di-masking browser', hasWebGL2 };
+    const version = gl.getParameter(gl.VERSION) || 'WebGL 1.0/2.0';
+    const maxTexture = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    if (!dbg) return { renderer: 'Di-masking browser', vendor: 'Di-masking browser', hasWebGL2, version, maxTexture };
     return {
       renderer: gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) as string,
       vendor: gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) as string,
       hasWebGL2,
+      version,
+      maxTexture,
     };
   } catch {
-    return { renderer: 'Gagal dibaca', vendor: 'Gagal dibaca', hasWebGL2: false };
+    return { renderer: 'Gagal dibaca', vendor: 'Gagal dibaca', hasWebGL2: false, version: 'Error' };
   }
 }
 
@@ -160,6 +184,7 @@ function getPerfMemory() {
     heap_terpakai_mb: (m.usedJSHeapSize / 1048576).toFixed(1) + ' MB',
     total_heap_mb: (m.totalJSHeapSize / 1048576).toFixed(1) + ' MB',
     limit_heap_mb: (m.jsHeapSizeLimit / 1048576).toFixed(0) + ' MB',
+    tekanan_memori: `${((m.usedJSHeapSize / m.jsHeapSizeLimit) * 100).toFixed(1)}%`,
   };
 }
 
@@ -217,24 +242,31 @@ async function streamPost(
 
 /** Minta analisis lengkap atas hasil pemeriksaan. */
 export function requestAnalysis(h: StreamHandlers, signal?: AbortSignal): Promise<void> {
-  return streamPost('/api/ai/analyze', { snapshot: buildSnapshot() }, h, signal);
+  const snapshot = buildSnapshot();
+  return streamPost('/api/ai', { mode: 'analyze', snapshot }, h, signal);
 }
 
-/** Tanya-jawab dengan asisten, membawa konteks hasil pemeriksaan. */
+/**
+ * Konsultasi chat dengan Dokter Device (Mengirim riwayat chat history agar selalu ingat konteks sebelumnya)
+ */
 export function requestChat(
   question: string,
   history: { role: 'user' | 'assistant'; content: string }[],
   h: StreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
-  return streamPost('/api/ai/chat', { question, history, snapshot: buildSnapshot() }, h, signal);
+  const snapshot = buildSnapshot();
+  return streamPost('/api/ai', { mode: 'chat', question, history, snapshot }, h, signal);
 }
 
-/** Render Markdown ke HTML terstruktur menggunakan parser marked */
-export function renderMarkdown(md: string): string {
+/**
+ * Helper untuk me-render string Markdown menjadi HTML terstruktur via 'marked'
+ */
+export function renderMarkdown(rawMd: string): string {
+  if (!rawMd) return '';
   try {
-    return marked.parse(md) as string;
+    return marked.parse(rawMd) as string;
   } catch {
-    return md;
+    return rawMd;
   }
 }
