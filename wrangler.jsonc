@@ -4,6 +4,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "device-doctor",
+  "account_id": "af3ca8712a8a4aa7fe26aba045d69395",
   "main": "worker/index.ts",
   "compatibility_date": "2026-08-26",
   "compatibility_flags": ["nodejs_compat"],
