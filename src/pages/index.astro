@@ -8,100 +8,84 @@ import {
   Monitor, 
   Cpu, 
   Database, 
-  Sparkles, 
   Radio, 
   Film, 
   Camera, 
   Layers, 
   Gauge, 
-  Clock 
+  Clock, 
+  Flame,
+  Volume2
 } from 'lucide-react';
 
-const specs = [
-  { id: 'ipnet', icon: 'Globe', title: 'IP Publik & Operator ISP', desc: 'Alamat IP publik, ISP Provider, ASN, Organisasi, dan Lokasi Edge Server.' },
-  { id: 'battery', icon: 'Battery', title: 'Baterai & Daya', desc: 'Status pengisian dan level persentase baterai real-time.' },
-  { id: 'connection', icon: 'Wifi', title: 'Koneksi & Sinyal', desc: 'Status online, tipe jaringan (4G/5G/WiFi), downlink Mbps & RTT latency.' },
-  { id: 'device', icon: 'Smartphone', title: 'Perangkat & CPU', desc: 'Arsitektur platform, jumlah CPU cores, RAM terdeteksi, dan touch points.' },
-  { id: 'screen', icon: 'Monitor', title: 'Layar & Resolusi', desc: 'Resolusi fisik aktual, DPR scale, orientasi, dan preferensi tema OS.' },
-  { id: 'gpu', icon: 'Cpu', title: 'GPU & Chipset', desc: 'Renderer kartu grafis dan vendor hardware via WebGL unmasked info.' },
-  { id: 'storage', icon: 'Database', title: 'Penyimpanan (Origin)', desc: 'Alokasi kuota storage browser & pemakaian data lokal situs.' },
-  { id: 'displayx', icon: 'Sparkles', title: 'Kualitas Display', desc: 'Pengukuran live refresh rate (Hz), color gamut P3, dan dukungan HDR.' },
-  { id: 'sensors', icon: 'Radio', title: 'Sensor & Radio', desc: 'Ketersediaan Gyroscope, Accelerometer, Magnetometer, Bluetooth & NFC.' },
-  { id: 'codecs', icon: 'Film', title: 'Codec Media & DRM', desc: 'Dukungan decoding video hardware (H.264, HEVC, VP9, AV1) & DRM Widevine.' },
-  { id: 'mediadev', icon: 'Camera', title: 'Kamera & Audio', desc: 'Jumlah sensor kamera (depan/belakang) dan mikrofon fisik terdeteksi.' },
-  { id: 'platform', icon: 'Layers', title: 'Platform & Web APIs', desc: 'PWA standalone, WebGL 2.0, WebGPU, WebAssembly, dan Secure Context.' },
-  { id: 'memory', icon: 'Gauge', title: 'Memori JS Heap', desc: 'Pemakaian alokasi memori heap JavaScript engine (Chromium only).' },
-  { id: 'locale', icon: 'Clock', title: 'Waktu & Locale', desc: 'Zona waktu sistem, bahasa browser, format tanggal, dan offset UTC.' },
+const categories = [
+  { id: 'card-ip', title: 'Alamat IP & Jaringan Provider', desc: 'Informasi IP Publik, ISP, ASN & Edge Datacenter.', icon: Globe },
+  { id: 'card-battery', title: 'Baterai & Manajemen Daya', desc: 'Level baterai real-time & status pengisian daya.', icon: Battery },
+  { id: 'card-connection', title: 'Sinyal & Transmisi Jaringan', desc: 'Media koneksi fisik, bandwidth downlink & latensi RTT.', icon: Wifi },
+  { id: 'card-device', title: 'Perangkat, CPU & Arsitektur', desc: 'Vendor, model komersial, core CPU & RAM.', icon: Smartphone },
+  { id: 'card-display', title: 'Layar & Spesifikasi Visual', desc: 'Resolusi fisik, refresh rate Hz, gamut & HDR.', icon: Monitor },
+  { id: 'card-gpu', title: 'GPU & WebGL2 3D Acceleration', desc: 'Chipset grafis hardware & batas render buffer.', icon: Cpu },
+  { id: 'card-storage', title: 'Penyimpanan & Kuota Browser', desc: 'Alokasi storage origin & persistensi data.', icon: Database },
+  { id: 'card-sensors', title: 'Sensor Gerak & Antarmuka Input', desc: 'Gyroscope, akselerometer, multi-touch & haptic.', icon: Radio },
+  { id: 'card-audio', title: 'Audio & Multimedia Hardware', desc: 'Web Audio framework, latency & kanal stereo.', icon: Volume2 },
+  { id: 'card-codecs', title: 'Dukungan Video & Audio Codecs', desc: 'Kemampuan hardware decode AV1, HEVC, VP9, H.264.', icon: Film },
+  { id: 'card-capabilities', title: 'Fitur Browser & Web Platform', desc: 'PWA, WASM, Biometrik FIDO2 & Security Context.', icon: Layers },
+  { id: 'card-memory', title: 'Memori JavaScript Heap Engine', desc: 'Pemakaian memori V8 & batas aman tab.', icon: Gauge },
+  { id: 'card-locale', title: 'Waktu, Zona Waktu & Regional', desc: 'Waktu sistem, timezone, bahasa & kalender.', icon: Clock },
 ];
 ---
 
-<BaseLayout title="Spesifikasi Perangkat · Device Doctor" description="Inspeksi mendalam spesifikasi hardware, jaringan IP/ISP, dan Web APIs browser perangkat kamu.">
-  <div class="flex flex-col gap-4">
-    <!-- Header Banner -->
-    <div class="dd-card p-4 bg-card flex flex-col gap-2 relative overflow-hidden" data-accent="neutral">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-heading text-xl font-extrabold">Spesifikasi Lengkap Perangkat</h2>
-          <p class="text-xs text-muted-foreground mt-0.5">14 Modul Hardware, Jaringan IP/ISP & Web APIs dibaca secara akurat.</p>
+<BaseLayout 
+  title="Spesifikasi Lengkap Hardware & Jaringan · Device Doctor"
+  description="Inspeksi komprehensif 14 kategori hardware, identitas model HP, ISP provider, chipset GPU, refresh rate layar, dan sensor perangkat secara langsung di browser."
+  keywords="spesifikasi hp online, cek model samsung xiaomi poco, cek gpu hp webgl, cek refresh rate layar hz, cek isp ip publik online"
+>
+  <div class="flex flex-col gap-6">
+    <!-- Hero Banner Spesifikasi -->
+    <div class="dd-card p-5 sm:p-6 bg-card flex flex-col gap-2.5" data-accent="neutral">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center justify-center w-11 h-11 rounded-base bg-main border-2 border-border shadow-xs shrink-0">
+          <Smartphone className="w-6 h-6 text-foreground" />
         </div>
-        <span class="dd-btn bg-main px-2.5 py-1 text-xs font-bold font-data">
-          14 Modul
-        </span>
+        <div>
+          <h2 class="font-heading text-lg sm:text-xl md:text-2xl font-black">Spesifikasi Lengkap Perangkat</h2>
+          <p class="text-xs sm:text-sm text-muted-foreground">Analisis mendalam 14 kategori hardware, jaringan edge, dan Web APIs secara jujur.</p>
+        </div>
       </div>
+      <p class="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
+        Semua data diinspeksi secara real-time langsung melalui browser tanpa instalasi aplikasi tambahan.
+      </p>
     </div>
 
-    <!-- Grid Kartu Spesifikasi -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-      {
-        specs.map((item) => (
-          <article
-            id={`card-${item.id}`}
-            class="dd-card relative flex flex-col gap-2.5 p-4 bg-card"
-            data-accent="neutral"
-            data-unsupported="false"
-          >
-            <div class="flex items-center justify-between border-b-2 border-border/40 pb-2">
-              <div class="flex items-center gap-2">
-                <div class="p-1.5 rounded-base bg-secondary-background border-2 border-border">
-                  {item.icon === 'Globe' && <Globe className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Battery' && <Battery className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Wifi' && <Wifi className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Smartphone' && <Smartphone className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Monitor' && <Monitor className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Cpu' && <Cpu className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Database' && <Database className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Sparkles' && <Sparkles className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Radio' && <Radio className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Film' && <Film className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Camera' && <Camera className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Layers' && <Layers className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Gauge' && <Gauge className="w-4 h-4 text-primary" />}
-                  {item.icon === 'Clock' && <Clock className="w-4 h-4 text-primary" />}
+    <!-- Grid Kartu Spesifikasi: 1 Kolom di Mobile, 2 Kolom di Tablet, 3 Kolom di Desktop Lebar -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 items-start">
+      {categories.map((cat) => {
+        const Icon = cat.icon;
+        return (
+          <div id={cat.id} class="dd-card p-4 sm:p-5 bg-card flex flex-col gap-3 h-full shadow-xs" data-accent="neutral">
+            <div class="flex items-center justify-between gap-2 border-b-2 border-border/40 pb-2.5">
+              <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-base bg-secondary-background border-2 border-border shadow-2xs shrink-0">
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" />
                 </div>
-                <h3 class="font-heading text-sm font-bold tracking-tight">{item.title}</h3>
+                <div>
+                  <h3 class="font-heading text-sm sm:text-base font-extrabold leading-snug">{cat.title}</h3>
+                  <p class="text-[11px] text-muted-foreground">{cat.desc}</p>
+                </div>
               </div>
+              <span data-pill class="dd-pill dd-pill-dim text-[10px] uppercase font-bold shrink-0">
+                Live
+              </span>
             </div>
 
-            <dl data-body class="flex flex-col">
-              <div class="dd-skeleton h-4 w-3/4 mb-1.5" />
-              <div class="dd-skeleton h-4 w-1/2" />
-            </dl>
-
-            <p data-note class="text-[11px] leading-relaxed text-muted-foreground border-t border-dashed border-border/30 pt-1.5">
-              {item.desc}
-            </p>
-          </article>
-        ))
-      }
+            <!-- Body Tabel Key-Value Data -->
+            <div class="dd-card-body flex-1 text-xs sm:text-sm">
+              <div class="dd-skeleton h-20 w-full"></div>
+            </div>
+          </div>
+        );
+      })}
     </div>
-
-    <!-- Raw User Agent Box -->
-    <article class="dd-card p-4 bg-card flex flex-col gap-2" data-accent="neutral">
-      <h3 class="font-heading text-xs font-bold uppercase tracking-wider text-muted-foreground">User Agent String (Mentah)</h3>
-      <p data-ua class="font-data text-[11px] leading-relaxed break-all text-muted-foreground bg-secondary-background p-2.5 rounded-base border-2 border-border">
-        Memuat user agent…
-      </p>
-    </article>
   </div>
 
   <script>

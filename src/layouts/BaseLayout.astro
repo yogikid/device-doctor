@@ -100,7 +100,7 @@ const structuredData = {
     <meta property="twitter:description" content={description} />
     <meta property="twitter:image" content={image} />
 
-    <!-- Geo & Location Meta Tags (Regional SEO & Geo-Targeting AI) -->
+    <!-- Geo & Location Meta Tags -->
     <meta name="geo.region" content="ID" />
     <meta name="geo.placename" content="Indonesia" />
     <meta name="geo.position" content="-6.2088;106.8456" />
@@ -122,35 +122,36 @@ const structuredData = {
     <ClientRouter />
   </head>
 
-  <body class="min-h-dvh bg-background font-sans text-foreground antialiased selection:bg-main selection:text-black">
-    <!-- Outer Container yang Responsif: Ramping di Mobile, Lebar & Nyaman di Desktop (max-w-4xl) -->
-    <div class="mx-auto flex min-h-dvh w-full max-w-md md:max-w-3xl lg:max-w-4xl flex-col border-x-0 md:border-x-[3px] border-border bg-card shadow-2xl relative pb-24 transition-all duration-200">
+  <!-- Background Berpola Grid Retro Halus yang Transparan & Alami -->
+  <body class="min-h-dvh bg-background text-foreground antialiased selection:bg-main selection:text-black [background-size:24px_24px] [background-image:linear-gradient(to_right,#0000000a_1px,transparent_1px),linear-gradient(to_bottom,#0000000a_1px,transparent_1px)]">
+    
+    <!-- Outer Container yang 100% Responsif Fluida Menyesuaikan Ukuran Device Apapun -->
+    <div class="mx-auto flex min-h-dvh w-full max-w-7xl flex-col bg-card/95 backdrop-blur-xs border-x-0 md:border-x-[3px] border-border shadow-2xl relative pb-24 transition-all duration-200">
       
-      <!-- App Header -->
-      <header class="sticky top-0 z-30 flex items-center justify-between border-b-[3px] border-border bg-main px-4 py-3 shadow-sm">
+      <!-- App Header Responsif -->
+      <header class="sticky top-0 z-30 flex items-center justify-between border-b-[3px] border-border bg-main px-4 sm:px-6 md:px-8 py-3.5 shadow-sm">
         <div class="flex items-center gap-3">
-          <!-- Logo Stethoscope SVG Raw Inline (Anti-Gagal 100% Selalu Muncul) -->
-          <div class="flex items-center justify-center w-9 h-9 rounded-base bg-card border-2 border-border shadow-xs shrink-0">
-            <svg class="w-5 h-5 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <div class="flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-base bg-card border-2 md:border-[2.5px] border-border shadow-xs shrink-0">
+            <svg class="w-5 h-5 md:w-6 md:h-6 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
               <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/>
               <circle cx="20" cy="10" r="2"/>
             </svg>
           </div>
           <div>
-            <h1 class="font-heading text-base md:text-lg font-black leading-none tracking-tight text-foreground">Device Doctor</h1>
-            <p class="text-[11px] font-bold text-foreground/75 mt-0.5">Mobile Hardware Diagnostics & AI Lab</p>
+            <h1 class="font-heading text-base sm:text-lg md:text-xl font-black leading-none tracking-tight text-foreground">Device Doctor</h1>
+            <p class="text-[11px] sm:text-xs font-bold text-foreground/75 mt-0.5">Mobile Hardware Diagnostics & AI Lab</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <span id="net-status" class="dd-btn px-3 py-1 font-data text-xs bg-healthy font-bold">
+          <span id="net-status" class="dd-btn px-3 py-1 font-data text-xs sm:text-sm bg-healthy font-extrabold shadow-xs">
             Online
           </span>
         </div>
       </header>
 
-      <!-- Main Content Area -->
-      <main class="flex-1 p-3.5 sm:p-5 md:p-6">
+      <!-- Main Content Area: Grid Fluida yang Ramping di HP dan Melebar Elegan di Tablet/Desktop -->
+      <main class="flex-1 p-3.5 sm:p-6 md:p-8 lg:p-10 w-full">
         <slot />
       </main>
 

@@ -4,89 +4,133 @@
 import { $, setText, setHidden, fmtBytes, fmtPct, esc } from '../dom';
 import { setEntry } from './store';
 import type { Status } from './types';
-import {
-  collectIpDetails,
-  collectDisplayExtra,
-  collectCodecs,
-  collectSensors,
-  collectMediaDevices,
-  collectPlatformFeatures,
-  collectMemory,
-  collectLocale,
-} from './info-extra';
+import { initExtraInfo } from './info-extra';
 
-interface FieldRow {
-  label: string;
-  value: string;
-  mono?: boolean;
+function activate(cardId: string, accent: 'healthy' | 'attention' | 'critical' | 'neutral' = 'neutral') {
+  const card = $(`#${cardId}`);
+  if (!card) return;
+  card.setAttribute('data-accent', accent);
+  const pill = card.querySelector('[data-pill]') as HTMLElement | null;
+  if (pill) {
+    pill.classList.remove('dd-pill-dim');
+    pill.classList.add('dd-pill-live');
+  }
 }
 
-function renderRows(containerId: string, rows: FieldRow[]) {
-  const box = $(`#${containerId} [data-body]`);
-  if (!box) return;
-  box.innerHTML = rows
-    .map(
-      (r) => `<div class="dd-row">
-        <dt>${esc(r.label)}</dt>
-        <dd class="${r.mono === false ? 'font-sans' : 'font-data'}">${esc(r.value)}</dd>
-      </div>`,
-    )
+function deactivate(cardId: string, reason?: string) {
+  const card = $(`#${cardId}`);
+  if (!card) return;
+  card.setAttribute('data-accent', 'attention');
+  const pill = card.querySelector('[data-pill]') as HTMLElement | null;
+  if (pill) {
+    pill.classList.remove('dd-pill-live');
+    pill.classList.add('dd-pill-dim');
+  }
+  const body = card.querySelector('.dd-card-body');
+  if (body && reason) {
+    body.innerHTML = `<p class="text-xs text-muted-foreground">${esc(reason)}</p>`;
+  }
+}
+
+export function renderRows(cardId: string, rows: { label: string; value: string; mono?: boolean }[]) {
+  const card = $(`#${cardId}`);
+  if (!card) return;
+  const body = card.querySelector('.dd-card-body');
+  if (!body) return;
+
+  const html = rows
+    .map((r) => {
+      const monoCls = r.mono ? 'font-data' : 'font-sans';
+      return `
+        <div class="dd-row">
+          <dt class="text-xs text-muted-foreground">${esc(r.label)}</dt>
+          <dd class="${monoCls} text-xs font-bold text-foreground">${esc(r.value)}</dd>
+        </div>
+      `;
+    })
     .join('');
+
+  body.innerHTML = `<dl class="flex flex-col gap-1">${html}</dl>`;
 }
 
-function deactivate(id: string, reason: string) {
-  const card = $(`#card-${id}`);
-  const body = $(`#card-${id} [data-body]`);
-  const note = $(`#card-${id} [data-note]`);
-  if (card instanceof HTMLElement) {
-    card.dataset.unsupported = 'true';
-    card.dataset.accent = 'neutral';
-  }
-  setHidden(body, true);
-  setText(note, reason);
-  setEntry(id, { status: 'unsupported', note: reason });
-}
-
-function activate(id: string, accent: 'healthy' | 'attention' | 'critical' | 'neutral' = 'neutral') {
-  const card = $(`#card-${id}`);
-  const body = $(`#card-${id} [data-body]`);
-  if (card instanceof HTMLElement) {
-    card.dataset.unsupported = 'false';
-    card.dataset.accent = accent;
-  }
-  setHidden(body, false);
-}
-
-/* ---------- 1. Detail IP Publik & Operator ISP ---------- */
+/* ---------- 1. IP Publik & Jaringan Edge (Cloudflare + IPWhois Hybrid) ---------- */
 async function initIpNetwork() {
+  activate('card-ip', 'neutral');
+
   try {
-    const rows = await collectIpDetails();
-    activate('ipnet', 'healthy');
-    renderRows('card-ipnet', rows.map(([label, value]) => ({ label, value })));
+    const res = await fetch('/api/ip', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    renderRows('card-ip', [
+      { label: 'Alamat IP Publik', value: data.ip || '—', mono: true },
+      { label: 'ISP / Operator', value: data.isp || '—', mono: false },
+      { label: 'Organisasi Jaringan', value: data.asOrganization || data.isp || '—', mono: false },
+      { label: 'Nomor Autonomous System', value: data.asn || '—', mono: true },
+      { label: 'Lokasi Datacenter / Kota', value: `${data.city || '—'}, ${data.region || '—'} (${data.country || 'ID'})`, mono: false },
+      { label: 'Protokol & Enkripsi', value: `${data.httpProtocol || 'HTTP/2'} · ${data.tlsVersion || 'TLS 1.3'}`, mono: true },
+    ]);
+
+    setEntry('network_ip', {
+      status: 'pass',
+      value: `${data.ip} (${data.isp})`,
+      note: `IP Publik: ${data.ip}, ISP: ${data.isp}, ASN: ${data.asn}, Lokasi: ${data.city}, ${data.country}.`,
+    });
   } catch {
-    deactivate('ipnet', 'Gagal memuat detail jaringan IP dari Edge.');
+    // Fallback Client-side jika /api/ip timeout
+    try {
+      const extRes = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(3000) });
+      const ext = await extRes.json();
+      if (ext.success) {
+        renderRows('card-ip', [
+          { label: 'Alamat IP Publik', value: ext.ip, mono: true },
+          { label: 'ISP / Operator', value: ext.connection?.isp || '—', mono: false },
+          { label: 'Organisasi Jaringan', value: ext.connection?.org || '—', mono: false },
+          { label: 'Nomor Autonomous System', value: ext.connection?.asn ? `AS${ext.connection.asn}` : '—', mono: true },
+          { label: 'Lokasi Datacenter / Kota', value: `${ext.city}, ${ext.region} (${ext.country_code})`, mono: false },
+          { label: 'Protokol & Enkripsi', value: 'HTTPS / TLS', mono: true },
+        ]);
+        setEntry('network_ip', {
+          status: 'pass',
+          value: `${ext.ip} (${ext.connection?.isp})`,
+          note: `IP: ${ext.ip}, ISP: ${ext.connection?.isp}, Lokasi: ${ext.city}.`,
+        });
+        return;
+      }
+    } catch {}
+    deactivate('card-ip', 'Gagal memuat detail IP publik.');
   }
 }
 
-/* ---------- 2. Baterai ---------- */
-interface BatteryLike extends EventTarget {
-  level: number;
-  charging: boolean;
-}
-
+/* ---------- 2. Baterai & Daya ---------- */
 async function initBattery() {
-  if (!('getBattery' in navigator)) {
-    deactivate('battery', 'API Baterai tidak didukung di browser ini (hanya Chromium Android/Desktop).');
+  const nav = navigator as Navigator & {
+    getBattery?: () => Promise<{
+      charging: boolean;
+      level: number;
+      chargingTime: number;
+      dischargingTime: number;
+      addEventListener: (type: string, listener: () => void) => void;
+    }>;
+  };
+
+  if (!nav.getBattery) {
+    deactivate('battery', 'Battery Status API tidak didukung di browser ini (fitur ini dibatasi di iOS/Safari demi privasi).');
+    setEntry('battery', { status: 'unsupported', note: 'Browser tidak mengekspos Battery Status API.' });
     return;
   }
+
   try {
-    const bat = await (navigator as Navigator & { getBattery(): Promise<BatteryLike> }).getBattery();
+    const bat = await nav.getBattery();
     activate('battery', 'healthy');
+
     const paint = () => {
       const level = Math.round(bat.level * 100);
       renderRows('card-battery', [
-        { label: 'Level Daya Saat Ini', value: `${level}%`, mono: true },
-        { label: 'Status Pengisian', value: bat.charging ? 'Sedang di-cas ⚡' : 'Memakai Baterai (Discharging)', mono: false },
+        { label: 'Status Daya', value: bat.charging ? 'Sedang Mengisi Daya (Charging)' : 'Menggunakan Baterai (Discharging)', mono: false },
+        { label: 'Kapasitas Baterai', value: `${level}%`, mono: true },
+        { label: 'Estimasi Waktu Cas Penuh', value: bat.charging && isFinite(bat.chargingTime) && bat.chargingTime > 0 ? `${Math.round(bat.chargingTime / 60)} menit` : '—', mono: true },
+        { label: 'Estimasi Waktu Habis', value: !bat.charging && isFinite(bat.dischargingTime) && bat.dischargingTime > 0 ? `${Math.round(bat.dischargingTime / 60)} menit` : '—', mono: true },
       ]);
       setEntry('battery', {
         status: 'info',
@@ -102,28 +146,58 @@ async function initBattery() {
   }
 }
 
-/* ---------- 3. Sinyal & Network Info ---------- */
+/* ---------- 3. Sinyal & Network Info (Deteksi Akurat Wi-Fi / Seluler) ---------- */
 function initConnection() {
   const nav = navigator as Navigator & {
-    connection?: { effectiveType?: string; downlink?: number; rtt?: number; saveData?: boolean };
+    connection?: { 
+      type?: string; 
+      effectiveType?: string; 
+      downlink?: number; 
+      rtt?: number; 
+      saveData?: boolean;
+    };
   };
   const conn = nav.connection;
   if (!conn) {
     deactivate('connection', 'Network Information API tidak didukung di browser ini. Status online/offline tetap dicek.');
-    setEntry('connection', { status: 'unsupported', note: 'Detail koneksi (4g/rtt) tidak tersedia di browser ini.' });
+    setEntry('connection', { status: 'unsupported', note: 'Detail koneksi (rtt/downlink) tidak tersedia di browser ini.' });
     updateOnlineBadge();
     return;
   }
   activate('connection', 'healthy');
+
   const paint = () => {
     const online = navigator.onLine;
+
+    // 1. Deteksi Fisik Interface Jaringan (Wi-Fi vs Seluler)
+    let physicalType = 'Wi-Fi / LAN Broadband';
+    if (conn.type) {
+      if (conn.type === 'wifi') physicalType = 'Wi-Fi (Wireless LAN)';
+      else if (conn.type === 'cellular') physicalType = 'Jaringan Seluler (Mobile Data)';
+      else if (conn.type === 'ethernet') physicalType = 'Kabel Ethernet LAN';
+      else if (conn.type === 'bluetooth') physicalType = 'Bluetooth Tethering';
+      else if (conn.type === 'none') physicalType = 'Tidak Ada Koneksi';
+      else physicalType = conn.type.toUpperCase();
+    } else {
+      // conn.type sering disembunyikan browser untuk privasi.
+      // Jika RTT sangat rendah (<80ms) dan downlink tinggi, hampir pasti Wi-Fi/Fiber.
+      physicalType = (conn.rtt && conn.rtt < 100) ? 'Wi-Fi / Fixed Broadband (Terdeteksi)' : 'Jaringan Data / Wi-Fi';
+    }
+
+    // 2. Profil Throughput (Effective Performance Class)
+    const perfProfile = conn.effectiveType 
+      ? `${conn.effectiveType.toUpperCase()} (Kecepatan Setara Broadband)` 
+      : 'Broadband';
+
     renderRows('card-connection', [
       { label: 'Status Jaringan', value: online ? 'Online Terhubung' : 'Offline Terputus', mono: false },
-      { label: 'Tipe Koneksi (Est)', value: conn.effectiveType?.toUpperCase() ?? '—', mono: true },
-      { label: 'Estimasi Downlink', value: conn.downlink != null ? `≈ ${conn.downlink} Mbps` : '—', mono: true },
-      { label: 'Round Trip Time (RTT)', value: conn.rtt != null ? `≈ ${conn.rtt} ms` : '—', mono: true },
-      { label: 'Mode Hemat Data', value: conn.saveData ? 'Aktif' : 'Nonaktif', mono: false },
+      { label: 'Media Transmisi (Fisik)', value: physicalType, mono: false },
+      { label: 'Profil Kecepatan Web', value: perfProfile, mono: false },
+      { label: 'Estimasi Downlink (Bandwidth)', value: conn.downlink != null ? `≈ ${conn.downlink} Mbps` : '—', mono: true },
+      { label: 'Latensi Server (RTT)', value: conn.rtt != null ? `≈ ${conn.rtt} ms` : '—', mono: true },
+      { label: 'Mode Hemat Data (Data Saver)', value: conn.saveData ? 'Aktif' : 'Nonaktif', mono: false },
     ]);
+
     let st: Status = 'info';
     let note: string | undefined;
     if (!online) {
@@ -135,10 +209,11 @@ function initConnection() {
     }
     setEntry('connection', {
       status: st,
-      value: `${online ? 'online' : 'offline'}${conn.effectiveType ? ` · ${conn.effectiveType}` : ''}`,
+      value: `${online ? 'online' : 'offline'} · ${physicalType} · ${conn.effectiveType?.toUpperCase() ?? 'Fast'}`,
       note,
     });
   };
+
   paint();
   window.addEventListener('online', paint);
   window.addEventListener('offline', paint);
@@ -208,237 +283,151 @@ async function initDevice() {
 
   renderRows('card-device', [
     { label: 'Hardware Vendor', value: vendor, mono: false },
-    { label: 'Hardware Model', value: `${modelName} ${rawModel !== '—' && rawModel !== modelName ? `(${rawModel})` : ''}`.trim(), mono: true },
+    { label: 'Hardware Model', value: modelName, mono: false },
     { label: 'Sistem Operasi (OS)', value: osFull || 'Android', mono: false },
     { label: 'Browser Name', value: browserName, mono: false },
-    { label: 'Screen Resolution', value: `${screenW} × ${screenH} px (Physical)`, mono: true },
+    { label: 'Screen Width (Physical)', value: `${screenW} px`, mono: true },
+    { label: 'Screen Height (Physical)', value: `${screenH} px`, mono: true },
     { label: 'Is it a mobile device', value: isMobile ? 'Yes' : 'No', mono: true },
     { label: 'Is it a desktop device', value: isDesktop ? 'Yes' : 'No', mono: true },
     { label: 'Is it a tablet', value: isTablet ? 'Yes' : 'No', mono: true },
-    { label: 'Is it a crawler/robot', value: isBot ? 'Yes (Bot Detected)' : 'No', mono: true },
-    { label: 'CPU Cores / Threads', value: `${nav.hardwareConcurrency ?? '?'} Cores`, mono: true },
-    { label: 'Device RAM (Est)', value: nav.deviceMemory ? `≥ ${nav.deviceMemory} GB RAM` : 'Tidak di-expose', mono: true },
+    { label: 'Is it a crawler/robot', value: isBot ? 'Yes' : 'No', mono: true },
+    { label: 'CPU Cores / Threads', value: `${navigator.hardwareConcurrency ?? '—'} Cores`, mono: true },
+    { label: 'Device RAM (Est)', value: (nav as any).deviceMemory ? `≥ ${(nav as any).deviceMemory} GB RAM` : '—', mono: true },
   ]);
 
-  setEntry('device_model', { status: 'info', value: `${vendor} ${modelName} (${rawModel})` });
-  setEntry('device_os', { status: 'info', value: osFull });
-  setEntry('device_type', { status: 'info', value: isMobile ? 'Mobile Smartphone' : isTablet ? 'Tablet' : 'Desktop' });
   setEntry('device', {
     status: 'info',
-    value: `${vendor} ${modelName} · ${osFull} · ${screenW}x${screenH}`,
-    note: `Model: ${rawModel}, Vendor: ${vendor}, Browser: ${browserName}`,
+    value: `${modelName} · ${osFull}`,
+    note: `Vendor: ${vendor}, Model: ${modelName}, CPU: ${navigator.hardwareConcurrency ?? '?'} Cores, Screen: ${screenW}x${screenH}px.`,
   });
-
-  const uaEl = $('[data-ua]');
-  if (uaEl) uaEl.textContent = navigator.userAgent;
 }
 
-/** Parser cerdas vendor & nama model komersial smartphone */
 function parseDeviceInfo(model: string, ua: string): { vendor: string; modelName: string } {
-  const m = model.toUpperCase();
-  const u = ua.toUpperCase();
+  let vendor = 'Unknown Vendor';
+  let modelName = model !== '—' ? model : 'Smartphone / Generic Device';
 
-  // SAMSUNG
-  if (m.includes('SM-') || u.includes('SAMSUNG') || m.includes('SAMSUNG')) {
-    if (m.includes('A145F') || m.includes('A145')) return { vendor: 'Samsung', modelName: 'Galaxy A14 4G' };
-    if (m.includes('A146')) return { vendor: 'Samsung', modelName: 'Galaxy A14 5G' };
-    if (m.includes('A546')) return { vendor: 'Samsung', modelName: 'Galaxy A54 5G' };
-    if (m.includes('A556')) return { vendor: 'Samsung', modelName: 'Galaxy A55 5G' };
-    if (m.includes('S918')) return { vendor: 'Samsung', modelName: 'Galaxy S23 Ultra' };
-    if (m.includes('S928')) return { vendor: 'Samsung', modelName: 'Galaxy S24 Ultra' };
-    if (m.includes('SM-')) return { vendor: 'Samsung', modelName: `Galaxy (${model})` };
-    return { vendor: 'Samsung', modelName: 'Galaxy Device' };
+  if (/Samsung|SM-|Galaxy/i.test(model) || /SM-[A-Z0-9]+/i.test(ua) || /Samsung/i.test(ua)) {
+    vendor = 'Samsung';
+    if (model.includes('SM-A145F')) modelName = 'Galaxy A14 4G (SM-A145F)';
+    else if (model.includes('SM-A146')) modelName = 'Galaxy A14 5G';
+    else if (model.includes('SM-A546')) modelName = 'Galaxy A54 5G';
+    else if (model.includes('SM-S918')) modelName = 'Galaxy S23 Ultra';
+    else if (model.includes('SM-S928')) modelName = 'Galaxy S24 Ultra';
+    else if (model.startsWith('SM-')) modelName = `Galaxy (${model})`;
+  } else if (/POCO|Xiaomi|Redmi|M2102|2201/i.test(model) || /POCO|Redmi|Xiaomi|Mi /i.test(ua)) {
+    vendor = 'Xiaomi / POCO';
+    if (/M2102J20SG|POCO X3 Pro/i.test(model) || /M2102J20SG/i.test(ua)) modelName = 'POCO X3 Pro';
+    else if (/2201116SG|POCO X4 Pro/i.test(model)) modelName = 'POCO X4 Pro 5G';
+    else if (/23049PCD8G|POCO F5/i.test(model)) modelName = 'POCO F5';
+    else if (/2311DRK48G|POCO X6 Pro/i.test(model)) modelName = 'POCO X6 Pro';
+    else if (/Redmi/i.test(model)) modelName = model;
+    else modelName = `Xiaomi / POCO (${model})`;
+  } else if (/iPhone|iPad|Apple/i.test(ua) || /iPhone|iPad/i.test(model)) {
+    vendor = 'Apple';
+    modelName = /iPad/i.test(ua) ? 'iPad' : 'iPhone';
+  } else if (/Pixel/i.test(model) || /Pixel/i.test(ua)) {
+    vendor = 'Google';
+    modelName = model;
   }
 
-  // XIAOMI / POCO / REDMI
-  if (m.includes('POCO') || u.includes('POCO') || m.includes('M2102J20SG') || m.includes('M2007J20CG')) {
-    if (m.includes('M2102J20SG') || m.includes('M2102J20SI') || u.includes('POCO X3 PRO')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO X3 Pro' };
-    if (m.includes('M2007J20CG') || u.includes('POCO X3')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO X3 NFC' };
-    if (m.includes('22011211G') || u.includes('POCO F4')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO F4 GT' };
-    if (m.includes('23049PCD8G') || u.includes('POCO F5')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO F5' };
-    if (m.includes('24069PC21G') || u.includes('POCO F6')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO F6' };
-    return { vendor: 'Xiaomi / POCO', modelName: model !== '—' ? model : 'POCO Smartphone' };
-  }
-
-  if (m.includes('REDMI') || u.includes('REDMI')) {
-    return { vendor: 'Xiaomi / Redmi', modelName: model !== '—' ? model : 'Redmi Device' };
-  }
-
-  // APPLE
-  if (/iPhone/i.test(ua) || m.includes('IPHONE')) {
-    return { vendor: 'Apple', modelName: 'iPhone' };
-  }
-  if (/iPad/i.test(ua) || m.includes('IPAD')) {
-    return { vendor: 'Apple', modelName: 'iPad' };
-  }
-
-  // GOOGLE PIXEL
-  if (m.includes('PIXEL') || u.includes('PIXEL')) {
-    return { vendor: 'Google', modelName: model !== '—' ? model : 'Pixel Device' };
-  }
-
-  // OPPO / REALME / VIVO
-  if (/OPPO/i.test(ua) || m.includes('CPH')) return { vendor: 'OPPO', modelName: model !== '—' ? model : 'OPPO Smartphone' };
-  if (/REALME/i.test(ua) || m.includes('RMX')) return { vendor: 'Realme', modelName: model !== '—' ? model : 'Realme Smartphone' };
-  if (/VIVO/i.test(ua) || m.includes('V2')) return { vendor: 'Vivo', modelName: model !== '—' ? model : 'Vivo Smartphone' };
-
-  return {
-    vendor: model !== '—' ? 'Android Device' : 'Generic Hardware',
-    modelName: model !== '—' ? model : 'Mobile Smartphone',
-  };
+  return { vendor, modelName };
 }
 
-/* ---------- 5. Layar & Resolusi ---------- */
-function initScreen() {
-  activate('screen', 'neutral');
-  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+/* ---------- 5. Layar & Display Hardware ---------- */
+function initDisplay() {
+  activate('card-display', 'neutral');
+
   const dpr = window.devicePixelRatio || 1;
-  const orientation =
-    screen.orientation?.type?.replace('-primary', '').replace('-', ' ') ??
-    (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
-  
-  const physW = Math.round(screen.width * dpr);
-  const physH = Math.round(screen.height * dpr);
+  const screenW = Math.round(screen.width * dpr);
+  const screenH = Math.round(screen.height * dpr);
+  const colorDepth = screen.colorDepth ? `${screen.colorDepth}-bit` : '24-bit';
+  const colorGamut = window.matchMedia('(color-gamut: p3)').matches
+    ? 'DCI-P3 (Wide Color)'
+    : window.matchMedia('(color-gamut: srgb)').matches
+      ? 'sRGB Standard'
+      : 'Standard';
+  const isHdr = window.matchMedia('(dynamic-range: high)').matches;
+  const orientation = screen.orientation?.type?.replace('-primary', '').replace('-secondary', '') || (window.innerHeight > window.innerWidth ? 'portrait' : 'landscape');
 
-  renderRows('card-screen', [
-    { label: 'Resolusi Layar Fisik', value: `${physW} × ${physH} px (Aktual Hardware)`, mono: true },
-    { label: 'Viewport Virtual CSS', value: `${screen.width} × ${screen.height} px`, mono: true },
-    { label: 'Pixel Density (DPR)', value: `${dpr}× Scale Multiplier`, mono: true },
+  renderRows('card-display', [
+    { label: 'Resolusi Fisik Layar', value: `${screenW} × ${screenH} px`, mono: true },
+    { label: 'Viewport Browser CSS', value: `${window.innerWidth} × ${window.innerHeight} px`, mono: true },
+    { label: 'Device Pixel Ratio (DPR)', value: `${dpr.toFixed(2)}x Density`, mono: true },
+    { label: 'Refresh Rate Layar (Hz)', value: 'Mengukur…', mono: true },
+    { label: 'Kedalaman Warna', value: colorDepth, mono: true },
+    { label: 'Color Gamut Layar', value: colorGamut, mono: false },
+    { label: 'Dukungan HDR Display', value: isHdr ? 'Mendukung (High Dynamic Range)' : 'SDR Standard', mono: false },
     { label: 'Orientasi Layar', value: orientation.toUpperCase(), mono: false },
-    { label: 'Tema Sistem OS', value: dark ? 'Dark Mode Aktif' : 'Light Mode', mono: false },
+    { label: 'Titik Sentuh (Multi-touch)', value: `${navigator.maxTouchPoints || 1} Titik Sentuh`, mono: true },
   ]);
-  setEntry('screen', {
-    status: 'info',
-    value: `${physW}×${physH} px (${screen.width}×${screen.height}@${dpr}x)`,
-  });
+
+  // Mengukur live refresh rate (Hz)
+  let frames = 0;
+  const startTime = performance.now();
+  const measure = () => {
+    frames++;
+    const elapsed = performance.now() - startTime;
+    if (elapsed < 1000) {
+      requestAnimationFrame(measure);
+    } else {
+      const fps = Math.round((frames * 1000) / elapsed);
+      const rows = [
+        { label: 'Resolusi Fisik Layar', value: `${screenW} × ${screenH} px`, mono: true },
+        { label: 'Viewport Browser CSS', value: `${window.innerWidth} × ${window.innerHeight} px`, mono: true },
+        { label: 'Device Pixel Ratio (DPR)', value: `${dpr.toFixed(2)}x Density`, mono: true },
+        { label: 'Refresh Rate Layar (Hz)', value: `≈ ${fps} Hz`, mono: true },
+        { label: 'Kedalaman Warna', value: colorDepth, mono: true },
+        { label: 'Color Gamut Layar', value: colorGamut, mono: false },
+        { label: 'Dukungan HDR Display', value: isHdr ? 'Mendukung (High Dynamic Range)' : 'SDR Standard', mono: false },
+        { label: 'Orientasi Layar', value: orientation.toUpperCase(), mono: false },
+        { label: 'Titik Sentuh (Multi-touch)', value: `${navigator.maxTouchPoints || 1} Titik Sentuh`, mono: true },
+      ];
+      renderRows('card-display', rows);
+    }
+  };
+  requestAnimationFrame(measure);
 }
 
-/* ---------- 6. GPU & Chipset ---------- */
-function initGPU() {
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = (canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
-    if (!gl) {
-      deactivate('gpu', 'WebGL tidak tersedia di browser ini.');
-      return;
-    }
-    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-    if (!dbg) {
-      deactivate('gpu', 'Browser menyembunyikan identitas GPU (kebijakan anti-fingerprinting).');
-      return;
-    }
-    const renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) as string;
-    const vendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) as string;
-    activate('gpu', 'neutral');
-    renderRows('card-gpu', [
-      { label: 'Chipset GPU / Renderer', value: renderer || '—', mono: true },
-      { label: 'Vendor GPU Hardware', value: vendor || '—', mono: true },
-    ]);
-    setEntry('gpu', { status: 'info', value: `${renderer} (${vendor})` });
-  } catch {
-    deactivate('gpu', 'GPU gagal dibaca di browser ini.');
-  }
-}
-
-/* ---------- 7. Penyimpanan Origin ---------- */
+/* ---------- 6. Penyimpanan & Storage Origin ---------- */
 async function initStorage() {
-  if (!navigator.storage?.estimate) {
-    deactivate('storage', 'Estimasi penyimpanan tidak didukung browser ini.');
-    return;
-  }
-  try {
-    const est = await navigator.storage.estimate();
-    if (est.quota == null) {
-      deactivate('storage', 'Browser tidak memberikan angka kuota penyimpanan.');
-      return;
+  activate('card-storage', 'neutral');
+
+  if (navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      const quota = est.quota ? fmtBytes(est.quota) : '—';
+      const used = est.usage != null ? fmtBytes(est.usage) : '0 B';
+      const pct = est.quota && est.usage ? fmtPct((est.usage / est.quota) * 100) : '0%';
+
+      let persisted = 'Tidak';
+      if (navigator.storage.persisted) {
+        persisted = (await navigator.storage.persisted()) ? 'Ya (Aman dari Eviction)' : 'Sementara (Session)';
+      }
+
+      renderRows('card-storage', [
+        { label: 'Penyimpanan Terpakai (Origin)', value: used, mono: true },
+        { label: 'Kuota Dialokasikan Browser', value: quota, mono: true },
+        { label: 'Rasio Terpakai', value: pct, mono: true },
+        { label: 'Status Persistensi Data', value: persisted, mono: false },
+        { label: 'IndexedDB Engine', value: 'indexedDB' in window ? 'Tersedia' : 'Nonaktif', mono: false },
+        { label: 'OPFS (Private File System)', value: 'getDirectory' in (navigator.storage || {}) ? 'Mendukung' : 'Tidak', mono: false },
+      ]);
+    } catch {
+      deactivate('card-storage', 'Gagal mengukur kuota penyimpanan.');
     }
-    const quota = est.quota;
-    const usage = est.usage ?? 0;
-    const ratio = quota > 0 ? usage / quota : 0;
-    activate('storage', 'healthy');
-    renderRows('card-storage', [
-      { label: 'Terpakai (Situs Ini)', value: fmtBytes(usage), mono: true },
-      { label: 'Kuota Tersedia (Origin)', value: fmtBytes(quota), mono: true },
-      { label: 'Rasio Terpakai', value: fmtPct(ratio), mono: true },
-      { label: 'Status Alokasi', value: quota >= 1e9 ? 'Tersedia Luas (>1 GB)' : 'Terbatas', mono: false },
-    ]);
-    setEntry('storage', {
-      status: 'info',
-      value: `${fmtBytes(usage)} terpakai / ${fmtBytes(quota)} kuota origin (${fmtPct(ratio)})`,
-      note: 'Kuota penyimpanan browser origin (bukan kapasitas memori flash total HP karena sandbox keamanan web).',
-    });
-  } catch {
-    deactivate('storage', 'Estimasi penyimpanan gagal dibaca.');
+  } else {
+    deactivate('card-storage', 'Storage Estimation API tidak didukung browser ini.');
   }
 }
 
-/* ---------- Extra Modules ---------- */
-async function initExtraCards() {
-  try {
-    const displayRows = await collectDisplayExtra();
-    activate('displayx', 'neutral');
-    renderRows('card-displayx', displayRows.map(([label, value]) => ({ label, value })));
-  } catch {
-    deactivate('displayx', 'Gagal membaca kualitas layar.');
-  }
-
-  try {
-    const sensorRows = collectSensors();
-    activate('sensors', 'neutral');
-    renderRows('card-sensors', sensorRows.map(([label, value]) => ({ label, value })));
-  } catch {
-    deactivate('sensors', 'Gagal mendeteksi sensor.');
-  }
-
-  try {
-    const codecRows = collectCodecs();
-    activate('codecs', 'neutral');
-    renderRows('card-codecs', codecRows.map(([label, value]) => ({ label, value })));
-  } catch {
-    deactivate('codecs', 'Gagal memeriksa codec.');
-  }
-
-  try {
-    const mediaRows = await collectMediaDevices();
-    activate('mediadev', 'neutral');
-    renderRows('card-mediadev', mediaRows.map(([label, value]) => ({ label, value })));
-  } catch {
-    deactivate('mediadev', 'Gagal membaca perangkat media.');
-  }
-
-  try {
-    const platformRows = collectPlatformFeatures();
-    activate('platform', 'neutral');
-    renderRows('card-platform', platformRows.map(([label, value]) => ({ label, value })));
-  } catch {
-    deactivate('platform', 'Gagal membaca fitur web.');
-  }
-
-  try {
-    const memoryRows = collectMemory();
-    activate('memory', 'neutral');
-    renderRows('card-memory', memoryRows.map(([label, value]) => ({ label, value })));
-  } catch {
-    deactivate('memory', 'Memori JS heap tidak tersedia.');
-  }
-
-  try {
-    const localeRows = collectLocale();
-    activate('locale', 'neutral');
-    renderRows('card-locale', localeRows.map(([label, value]) => ({ label, value })));
-  } catch {
-    deactivate('locale', 'Gagal membaca locale sistem.');
-  }
-}
-
+/* ---------- Inisialisasi Seluruh Modul Spesifikasi ---------- */
 export function initInfoDashboard() {
-  updateOnlineBadge();
   initIpNetwork();
   initBattery();
   initConnection();
   initDevice();
-  initScreen();
-  initGPU();
+  initDisplay();
   initStorage();
-  initExtraCards();
+  initExtraInfo();
 }

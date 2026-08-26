@@ -13,197 +13,166 @@ import {
   Play
 } from 'lucide-react';
 
-const testList = [
-  { id: 'touch', icon: 'Touchpad', name: 'Layar Sentuh (Multi-Touch Grid)', desc: 'Matriks sentuh edge-to-edge untuk mendeteksi dead zone sentuhan.' },
-  { id: 'display', icon: 'Tv', name: 'Dead Pixel & Layar Solid', desc: '8 warna solid fullscreen murni (Red, Green, Blue, Putih, Hitam, Kuning, Cyan, Magenta).' },
-  { id: 'speaker', icon: 'Volume2', name: 'Speaker Stereo (L / R)', desc: 'Pengecekan isolasi suara kanal kiri (600Hz) & kanan (800Hz).' },
-  { id: 'mic', icon: 'Mic', name: 'Mikrofon Real-Time Meter', desc: 'Pengujian sensitivitas penangkapan desibel suara live mikrofon.' },
-  { id: 'camera', icon: 'Camera', name: 'Kamera Depan & Belakang', desc: 'Preview stream video hardware dengan opsi alih lensa sensor.' },
-  { id: 'vibrate', icon: 'Vibrate', name: 'Motor Getaran HP (Haptic)', desc: 'Sinyal getaran haptic langsung via gesture Chromium API.' },
-  { id: 'motion', icon: 'Compass', name: 'Sensor Gerak & Gyroscope', desc: 'Bola leveling 3D real-time mendeteksi kemiringan sudut HP.' },
-  { id: 'benchmark', icon: 'Zap', name: 'Stress Test CPU & GPU', desc: 'Kalkulasi beban matriks matematika floating-point & render FPS.' },
-  { id: 'gps', icon: 'Navigation', name: 'Presisi Kuncian GPS', desc: 'Uji tingkat akurasi radius kuncian satelit posisi perangkat.' },
+const tests = [
+  { id: 'touch', title: 'Layar Sentuh', desc: 'Uji multi-touch responsif 60 blok matriks layar penuh edge-to-edge.', icon: Touchpad },
+  { id: 'display', title: 'Dead Pixel 8 Warna', desc: 'Uji spektrum 8 warna solid (RGB, White, Black, Cyan, Yellow, Magenta).', icon: Tv },
+  { id: 'speaker', title: 'Speaker Stereo L/R', desc: 'Uji pemisahan kanal audio kiri (600 Hz) dan kanan (800 Hz).', icon: Volume2 },
+  { id: 'mic', title: 'Mikrofon Real-Time', desc: 'Visualizer decibel meter respons input suara sekitar.', icon: Mic },
+  { id: 'camera', title: 'Modul Kamera', desc: 'Uji sensor optik kamera utama belakang dan kamera depan.', icon: Camera },
+  { id: 'vibrate', title: 'Motor Getar Haptic', desc: 'Uji getaran multi-pattern (Burst, SOS, Pulse, Long) W3C spec.', icon: Vibrate },
+  { id: 'motion', title: 'Sensor Gerak (Gyro)', desc: 'Uji respon sudut kemiringan 3D leveling akselerometer & gyroscope.', icon: Compass },
+  { id: 'benchmark', title: 'Benchmark CPU & GPU', desc: 'Stress test komputasi matematika floating-point matriks.', icon: Zap },
+  { id: 'gps', title: 'Kuncian Sinyal GPS', desc: 'Uji ketepatan radius akurasi satelit GNSS perangkat.', icon: Navigation },
 ];
 ---
 
-<BaseLayout title="Periksa Hardware · Device Doctor" description="Jalankan rangkaian tes interaktif untuk mengecek kesehatan fisik komponen HP kamu.">
-  <div class="flex flex-col gap-4">
-    <!-- Header Progress Card -->
-    <div class="dd-card p-4 bg-card flex flex-col gap-3 relative overflow-hidden" data-accent="healthy">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-heading text-xl font-extrabold">Uji Diagnostik Interaktif</h2>
-          <p class="text-xs text-muted-foreground mt-0.5">Jalankan tes satu per satu untuk merekam kondisi fisik HP.</p>
+<BaseLayout 
+  title="Periksa Hardware & Diagnostik Interaktif · Device Doctor"
+  description="Uji coba interaktif 9 komponen fisik smartphone: Layar sentuh fullscreen, dead pixel 8 warna, speaker stereo kiri kanan, mikrofon, kamera, dan haptic getaran."
+  keywords="tes layar hp online, uji dead pixel fullscreen, tes speaker stereo hp, cek getaran poco xiaomi, benchmark hp online"
+>
+  <div class="flex flex-col gap-6">
+    <!-- Header Card -->
+    <div class="dd-card p-5 sm:p-6 bg-card flex flex-col gap-2.5" data-accent="neutral">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center justify-center w-11 h-11 rounded-base bg-main border-2 border-border shadow-xs shrink-0">
+          <Touchpad className="w-6 h-6 text-foreground" />
         </div>
-        <div class="flex items-center gap-3">
-          <svg class="dd-ring" width="48" height="48" viewBox="0 0 54 54" aria-hidden="true">
-            <circle cx="27" cy="27" r="22" fill="none" stroke="var(--secondary-background)" stroke-width="6"></circle>
-            <circle
-              id="progress-ring"
-              cx="27" cy="27" r="22" fill="none"
-              stroke="var(--status-healthy)" stroke-width="6" stroke-linecap="round"
-              stroke-dasharray="138.2" stroke-dashoffset="138.2"></circle>
-          </svg>
-          <div class="text-right">
-            <span id="progress-text" class="font-data text-xs font-bold block">0/9 selesai</span>
-            <span class="text-[10px] text-muted-foreground">Status Tes</span>
-          </div>
+        <div>
+          <h2 class="font-heading text-lg sm:text-xl md:text-2xl font-black">Periksa Komponen Fisik</h2>
+          <p class="text-xs sm:text-sm text-muted-foreground">9 rangkaian pengujian interaktif untuk mendeteksi kerusakan fisik hardware.</p>
         </div>
       </div>
-
-      <button id="btn-run-first" class="dd-btn bg-main py-2 px-4 text-xs font-extrabold flex items-center justify-center gap-2 w-full">
-        <Play className="w-3.5 h-3.5 fill-current" />
-        Mulai Rangkaian Tes Dari Awal (Layar Sentuh)
-      </button>
+      <p class="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
+        Pilih salah satu komponen di bawah untuk membuka simulasi pengujian layar penuh edge-to-edge.
+      </p>
     </div>
 
-    <!-- Daftar Tes Card -->
-    <div class="flex flex-col gap-3">
-      {
-        testList.map((t) => (
-          <div id={`test-card-${t.id}`} class="dd-card p-4 bg-card flex items-start justify-between gap-3 relative" data-accent="neutral">
-            <div class="flex items-start gap-3 min-w-0">
-              <div class="p-2 rounded-base bg-secondary-background border-2 border-border shrink-0 mt-0.5">
-                {t.icon === 'Touchpad' && <Touchpad className="w-4 h-4 text-primary" />}
-                {t.icon === 'Tv' && <Tv className="w-4 h-4 text-primary" />}
-                {t.icon === 'Volume2' && <Volume2 className="w-4 h-4 text-primary" />}
-                {t.icon === 'Mic' && <Mic className="w-4 h-4 text-primary" />}
-                {t.icon === 'Camera' && <Camera className="w-4 h-4 text-primary" />}
-                {t.icon === 'Vibrate' && <Vibrate className="w-4 h-4 text-primary" />}
-                {t.icon === 'Compass' && <Compass className="w-4 h-4 text-primary" />}
-                {t.icon === 'Zap' && <Zap className="w-4 h-4 text-primary" />}
-                {t.icon === 'Navigation' && <Navigation className="w-4 h-4 text-primary" />}
+    <!-- Grid Test: 1 Kolom di Mobile, 2 Kolom di Tablet, 3 Kolom di Desktop -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+      {tests.map((t) => {
+        const Icon = t.icon;
+        return (
+          <div class="dd-card p-4 sm:p-5 bg-card flex flex-col justify-between gap-4 h-full shadow-xs" data-accent="neutral">
+            <div class="flex flex-col gap-2.5">
+              <div class="flex items-center justify-between gap-2 border-b-2 border-border/40 pb-2.5">
+                <div class="flex items-center gap-2.5">
+                  <div class="p-2 rounded-base bg-secondary-background border-2 border-border shadow-2xs shrink-0">
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" />
+                  </div>
+                  <h3 class="font-heading text-sm sm:text-base font-extrabold">{t.title}</h3>
+                </div>
+                <span id={`badge-${t.id}`} class="dd-pill dd-pill-dim text-[10px] uppercase font-bold shrink-0">
+                  Belum Diuji
+                </span>
               </div>
-              <div class="min-w-0">
-                <h3 class="font-heading text-sm font-bold tracking-tight">{t.name}</h3>
-                <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t.desc}</p>
-                <div id={`res-text-${t.id}`} class="mt-1 font-data text-[11px] font-semibold text-primary"></div>
-              </div>
+              <p class="text-xs sm:text-sm text-muted-foreground leading-relaxed">{t.desc}</p>
             </div>
 
-            <div class="flex flex-col items-end gap-2 shrink-0">
+            <div class="flex flex-col gap-2 pt-2">
               <button
-                data-test={t.id}
-                class="dd-btn bg-main px-3.5 py-1.5 text-xs font-bold"
+                type="button"
+                id={`btn-${t.id}`}
+                class="dd-btn bg-main py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 w-full shadow-xs"
               >
-                Mulai
+                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-foreground shrink-0 fill-current" />
+                <span>Mulai Uji Coba</span>
               </button>
-              <span
-                data-status={t.id}
-                class="inline-block rounded-base border-2 border-border px-2 py-0.5 text-[10px] font-bold bg-secondary-background text-muted-foreground"
-              >
-                … Belum
-              </span>
+              <div id={`result-${t.id}`} class="hidden font-data text-[11px] sm:text-xs p-2 rounded-base bg-secondary-background border border-border"></div>
             </div>
           </div>
-        ))
-      }
+        );
+      })}
     </div>
   </div>
 
   <script>
-    import { 
-      startTouchTest, 
-      startDisplayTest, 
-      startSpeakerTest, 
-      startMicTest, 
-      startCameraTest, 
-      startVibrateTest, 
-      startMotionTest, 
-      startBenchmark, 
-      startGpsTest 
+    import {
+      startTouchTest,
+      startDisplayTest,
+      startSpeakerTest,
+      startMicTest,
+      startCameraTest,
+      startVibrateTest,
+      startMotionTest,
+      startBenchmark,
+      startGpsTest,
     } from '@/lib/diagnostics/tests';
-    import { getSession, onSession, completedTestCount } from '@/lib/diagnostics/store';
-    import { TEST_IDS } from '@/lib/diagnostics/types';
+    import { getSession } from '@/lib/diagnostics/store';
 
-    const STARTERS: Record<string, () => void> = {
-      touch: startTouchTest,
-      display: startDisplayTest,
-      speaker: () => void startSpeakerTest(),
-      mic: () => void startMicTest(),
-      camera: () => void startCameraTest(),
-      vibrate: () => startVibrateTest(),
-      motion: () => startMotionTest(),
-      benchmark: () => startBenchmark(),
-      gps: () => startGpsTest(),
-    };
+    function updateBadge(id: string, status: string, value?: string) {
+      const badge = document.getElementById(`badge-${id}`);
+      const resBox = document.getElementById(`result-${id}`);
+      if (!badge) return;
 
-    const CHIP_STYLE: Record<string, string> = {
-      pass: 'bg-healthy text-black',
-      warn: 'bg-attention text-black',
-      fail: 'bg-critical text-white',
-      denied: 'bg-attention text-black',
-      unsupported: 'bg-secondary-background text-muted-foreground',
-      info: 'bg-accent text-black',
-      pending: 'bg-secondary-background text-muted-foreground',
-    };
-
-    const CHIP_TEXT: Record<string, string> = {
-      pass: '✓ Lolos',
-      warn: '! Catatan',
-      fail: '✕ Bermasalah',
-      denied: '⊘ Ditolak',
-      unsupported: '— Tak Didukung',
-      info: 'i Terbaca',
-      pending: '… Belum',
-    };
-
-    function refreshUi() {
-      const s = getSession();
-      for (const id of TEST_IDS) {
-        const chip = document.querySelector(`[data-status="${id}"]`);
-        const res = document.getElementById(`res-text-${id}`);
-        const card = document.getElementById(`test-card-${id}`);
-        const entry = s.entries[id];
-        const st = entry?.status ?? 'pending';
-
-        if (chip) {
-          chip.className = `inline-block rounded-base border-2 border-border px-2 py-0.5 text-[10px] font-bold ${CHIP_STYLE[st] ?? CHIP_STYLE.pending}`;
-          chip.textContent = CHIP_TEXT[st] ?? CHIP_TEXT.pending;
-        }
-
-        if (res && entry) {
-          res.textContent = entry.value ? `${entry.value} · ${entry.note ?? ''}` : entry.note ?? '';
-        }
-
-        if (card) {
-          card.dataset.accent = st === 'pass' ? 'healthy' : st === 'fail' ? 'critical' : st === 'warn' ? 'attention' : 'neutral';
-        }
+      badge.classList.remove('dd-pill-dim', 'dd-pill-live');
+      if (status === 'pass') {
+        badge.textContent = 'Lolos Normal';
+        badge.className = 'dd-pill bg-healthy text-black font-extrabold';
+      } else if (status === 'fail') {
+        badge.textContent = 'Bermasalah';
+        badge.className = 'dd-pill bg-critical text-white font-extrabold';
+      } else if (status === 'warn' || status === 'denied' || status === 'unsupported') {
+        badge.textContent = 'Perhatian / Izin';
+        badge.className = 'dd-pill bg-attention text-black font-extrabold';
       }
 
-      const done = completedTestCount(TEST_IDS);
-      const progText = document.getElementById('progress-text');
-      const ring = document.getElementById('progress-ring') as SVGCircleElement | null;
-      if (progText) progText.textContent = `${done}/${TEST_IDS.length} selesai`;
-      if (ring) {
-        const perimeter = 138.23;
-        ring.style.strokeDashoffset = String(perimeter - (done / TEST_IDS.length) * perimeter);
+      if (resBox && value) {
+        resBox.classList.remove('hidden');
+        resBox.textContent = `Hasil: ${value}`;
       }
     }
 
-    document.addEventListener('astro:page-load', () => {
-      refreshUi();
-    });
-
-    // Event delegation on document level so buttons always work even after SPA navigation
-    document.addEventListener('click', (e) => {
-      const target = e.target instanceof Element ? e.target : null;
-      if (!target) return;
-
-      const btn = target.closest<HTMLElement>('[data-test]');
-      if (btn) {
-        const id = btn.dataset.test!;
-        if (STARTERS[id]) {
-          STARTERS[id]();
-        }
-        return;
+    function syncAllBadges() {
+      const session = getSession();
+      for (const [id, entry] of Object.entries(session.entries)) {
+        updateBadge(id, entry.status, entry.value);
       }
+    }
 
-      if (target.closest('#btn-run-first')) {
+    function bindEvents() {
+      syncAllBadges();
+
+      document.getElementById('btn-touch')?.addEventListener('click', () => {
         startTouchTest();
-      }
-    });
+        setTimeout(syncAllBadges, 1000);
+      });
+      document.getElementById('btn-display')?.addEventListener('click', () => {
+        startDisplayTest();
+        setTimeout(syncAllBadges, 1000);
+      });
+      document.getElementById('btn-speaker')?.addEventListener('click', () => {
+        startSpeakerTest();
+        setTimeout(syncAllBadges, 1000);
+      });
+      document.getElementById('btn-mic')?.addEventListener('click', () => {
+        startMicTest();
+        setTimeout(syncAllBadges, 1000);
+      });
+      document.getElementById('btn-camera')?.addEventListener('click', () => {
+        startCameraTest();
+        setTimeout(syncAllBadges, 1000);
+      });
+      document.getElementById('btn-vibrate')?.addEventListener('click', () => {
+        startVibrateTest();
+        setTimeout(syncAllBadges, 1000);
+      });
+      document.getElementById('btn-motion')?.addEventListener('click', () => {
+        startMotionTest();
+        setTimeout(syncAllBadges, 1000);
+      });
+      document.getElementById('btn-benchmark')?.addEventListener('click', () => {
+        startBenchmark();
+        setTimeout(syncAllBadges, 1000);
+      });
+      document.getElementById('btn-gps')?.addEventListener('click', () => {
+        startGpsTest();
+        setTimeout(syncAllBadges, 1000);
+      });
+    }
 
-    onSession(() => refreshUi());
+    document.addEventListener('astro:page-load', () => {
+      bindEvents();
+    });
   </script>
 </BaseLayout>

@@ -3,6 +3,7 @@
  * dibaca browser secara jujur. Semua feature-detected.
  */
 import { setEntry } from './store';
+import { renderRows } from './info';
 
 type Row = [string, string];
 
@@ -68,145 +69,96 @@ export async function collectIpDetails(): Promise<Row[]> {
         note: `ISP: ${data.isp} (${data.asn}), Organisasi: ${data.asOrganization}, Lokasi Edge: ${data.city}, ${data.country}`,
       });
     } else {
-      rows.push(['Status IP/ISP', 'Gagal memuat detail jaringan IP']);
+      rows.push(['Status', 'Data IP gagal dimuat']);
     }
-  } catch (err) {
-    rows.push(['Status IP/ISP', 'Gagal memuat detail jaringan IP']);
+  } catch {
+    rows.push(['Status', 'Offline / Gagal koneksi']);
   }
   return rows;
 }
 
-/** Ukur refresh rate layar via dua frame berurutan (rata-rata 1 detik). */
-export function measureRefreshRate(): Promise<number> {
-  return new Promise((resolve) => {
-    let frames = 0;
-    const start = performance.now();
-    const tick = () => {
-      frames++;
-      if (performance.now() - start >= 1000) {
-        resolve(Math.round((frames * 1000) / (performance.now() - start)));
-        return;
-      }
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  });
-}
-
-/** Kemampuan layar & rendering. */
-export async function collectDisplayExtra(): Promise<Row[]> {
+/** Detail GPU & WebGL2 */
+export function collectGpu(): Row[] {
   const rows: Row[] = [];
-  const hz = await measureRefreshRate();
-  rows.push(['Refresh Rate Live', `~${hz} Hz`]);
-
-  if ('colorDepth' in screen) rows.push(['Kedalaman Warna', `${screen.colorDepth}-bit (${2 ** (screen.colorDepth || 24)} warna)`]);
-
-  const hdr = matchMedia('(dynamic-range: high)').matches;
-  rows.push(['Dynamic Range (HDR)', hdr ? '✓ Mendukung High Dynamic Range (HDR)' : 'Standar (SDR)']);
-
-  const p3 = matchMedia('(color-gamut: p3)').matches;
-  const srgb = matchMedia('(color-gamut: srgb)').matches;
-  rows.push(['Color Gamut Spektrum', p3 ? '✓ Wide Color Gamut (Display-P3)' : srgb ? 'Standar sRGB' : 'Terbatas']);
-
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  rows.push(['Mode Reduced Motion', reduce ? 'Aktif (Animasi Diminimalkan)' : 'Nonaktif']);
-
-  if ('availWidth' in screen) {
-    rows.push(['Area Layar Efektif', `${screen.availWidth} × ${screen.availHeight} px`]);
+  try {
+    const c = document.createElement('canvas');
+    const gl = (c.getContext('webgl2') || c.getContext('webgl')) as WebGLRenderingContext | null;
+    if (!gl) {
+      rows.push(['WebGL', '✕ Tidak didukung']);
+      return rows;
+    }
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    if (dbg) {
+      const vendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL);
+      const renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+      rows.push(['Hardware GPU Vendor', String(vendor || '—')]);
+      rows.push(['Chipset Renderer', String(renderer || '—')]);
+    }
+    rows.push(['Versi WebGL Engine', gl.getParameter(gl.VERSION) || 'WebGL 1.0/2.0']);
+    rows.push(['Max Texture Size', `${gl.getParameter(gl.MAX_TEXTURE_SIZE)} px`]);
+    rows.push(['Max Renderbuffer Size', `${gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)} px`]);
+    rows.push(['Max Color Attachments', `${gl.getParameter(gl.MAX_COLOR_ATTACHMENTS || gl.MAX_TEXTURE_IMAGE_UNITS)} unit`]);
+    rows.push(['Max Viewport Dimensions', `${gl.getParameter(gl.MAX_VIEWPORT_DIMS)?.[0] ?? '—'} px`]);
+  } catch {
+    rows.push(['Status', 'Gagal membaca parameter GPU']);
   }
-  const vv = window.visualViewport;
-  if (vv) rows.push(['Visual Viewport', `${Math.round(vv.width)} × ${Math.round(vv.height)} px`]);
-
-  rows.push(['Estimasi Diagonal Fisik', estimateInches(hz)]);
   return rows;
 }
 
-function estimateInches(_hz: number): string {
-  const dpr = window.devicePixelRatio || 1;
-  const wPx = screen.width * dpr;
-  const hPx = screen.height * dpr;
-  const ppi = 400;
-  const diag = Math.sqrt(wPx ** 2 + hPx ** 2) / ppi;
-  return `~${diag.toFixed(1)} Inci (estimasi ppi ${ppi})`;
-}
-
-/** Dukungan codec video/audio — relevan buat streaming. */
-export function collectCodecs(): Row[] {
-  const rows: Row[] = [];
-  const v = document.createElement('video');
-  const a = document.createElement('audio');
-  const probe = (el: HTMLMediaElement, type: string) => {
-    const r = el.canPlayType(type);
-    return r === 'probably' ? '✓ Hardware Didukung' : r === 'maybe' ? '~ Parsial' : '✕ Tidak Didukung';
-  };
-  rows.push(['H.264 / AVC (MP4)', probe(v, 'video/mp4; codecs="avc1.42E01E"')]);
-  rows.push(['HEVC / H.265 (4K/8K)', probe(v, 'video/mp4; codecs="hvc1"')]);
-  rows.push(['VP9 (YouTube 4K)', probe(v, 'video/webm; codecs="vp9"')]);
-  rows.push(['AV1 (Next-Gen Codec)', probe(v, 'video/mp4; codecs="av01.0.05M.08"')]);
-  rows.push(['AAC Audio (Stereo)', probe(a, 'audio/mp4; codecs="mp4a.40.2"')]);
-  rows.push(['Opus Audio (Lossless/VoIP)', probe(a, 'audio/ogg; codecs="opus"')]);
-  const drm = 'requestMediaKeySystemAccess' in navigator;
-  rows.push(['DRM Digital (Widevine API)', drm ? '✓ Tersedia (Netflix/Prime Video)' : '✕ Tidak tersedia']);
-  return rows;
-}
-
-/** Sensor & kapabilitas input yang API-nya bisa dicek. */
+/** Sensor & Input Hardware */
 export function collectSensors(): Row[] {
   const rows: Row[] = [];
-  const check = (label: string, ok: boolean, extra?: string) =>
-    rows.push([label, ok ? `✓ Tersedia${extra ? ` ${extra}` : ''}` : '✕ Tidak ada di browser']);
-
-  check('Sensor Akselerometer (G-Force)', 'Accelerometer' in window || 'DeviceMotionEvent' in window);
-  check('Sensor Giroskop (Orientasi 3D)', 'Gyroscope' in window || 'DeviceOrientationEvent' in window);
-  check('Sensor Magnetometer (Kompas)', 'Magnetometer' in window);
-  check('Sensor Cahaya Ambient (ALS)', 'AmbientLightSensor' in window);
-  check('Motor Getar (Haptic API)', 'vibrate' in navigator);
-  check('Bluetooth Nirkabel (Web Bluetooth)', 'bluetooth' in navigator);
-  check('Sensor NFC (Web NFC / NDEF)', 'NDEFReader' in window);
-  check('Koneksi USB OTG (WebUSB)', 'usb' in navigator);
-  check('Port Serial / Arduino (WebSerial)', 'serial' in navigator);
-  check('Gamepad / Stik Konsol', 'getGamepads' in navigator);
-  check('Layar Sentuh Multitouch', 'ontouchstart' in window, `(${navigator.maxTouchPoints ?? 0} titik sentuh)`);
+  rows.push(['Gyroscope & Accelerometer', 'DeviceOrientationEvent' in window ? '✓ Tersedia di Hardware' : '✕ Tidak didukung']);
+  rows.push(['Multi-Touch Screen', navigator.maxTouchPoints > 0 ? `✓ Mendukung (${navigator.maxTouchPoints} Titik)` : '✕ Single Touch / Mouse']);
+  rows.push(['Motor Getar (Haptic Engine)', 'vibrate' in navigator ? '✓ Tersedia (Vibration API)' : '✕ Tidak didukung']);
+  rows.push(['Ambient Light Sensor', 'AmbientLightSensor' in window ? '✓ Sensor Cahaya Aktif' : '✕ Tidak di-expose browser']);
+  rows.push(['Magnetometer / Kompas', 'Magnetometer' in window ? '✓ Sensor Kompas Tersedia' : '✕ Tidak di-expose browser']);
+  rows.push(['Gamepad Controller API', 'getGamepads' in navigator ? '✓ Mendukung Stik Konsol' : '✕ Tidak']);
+  rows.push(['Web Bluetooth API', 'bluetooth' in navigator ? '✓ Mendukung BLE' : '✕ Nonaktif']);
   return rows;
 }
 
-/** Kamera & mikrofon fisik. */
-export async function collectMediaDevices(): Promise<Row[]> {
+/** Audio & Multimedia Specs */
+export function collectAudioMedia(): Row[] {
   const rows: Row[] = [];
-  if (!navigator.mediaDevices?.enumerateDevices) {
-    rows.push(['Status', 'enumerateDevices tidak didukung browser ini']);
-    return rows;
+  const hasWA = 'AudioContext' in window || 'webkitAudioContext' in window;
+  rows.push(['Web Audio Framework', hasWA ? '✓ Mendukung AudioContext' : '✕ Tidak']);
+  if (hasWA) {
+    try {
+      const AC = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AC();
+      rows.push(['Sample Rate Default', `${ctx.sampleRate} Hz (${(ctx.sampleRate / 1000).toFixed(1)} kHz)`]);
+      rows.push(['Kanal Output Maksimum', `${ctx.destination.maxChannelCount} Channel (Stereo/Surround)`]);
+      rows.push(['Base Latency Estimasi', `${Math.round(ctx.baseLatency * 1000 || 5)} ms`]);
+      void ctx.close();
+    } catch {}
   }
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const cams = devices.filter((d) => d.kind === 'videoinput');
-    const mics = devices.filter((d) => d.kind === 'audioinput');
-    const outs = devices.filter((d) => d.kind === 'audiooutput');
-    rows.push(['Sensor Kamera Fisik', `${cams.length} Modul Terdeteksi`]);
-    rows.push(['Mikrofon Input Fisik', `${mics.length} Modul Terdeteksi`]);
-    rows.push(['Kanal Output Speaker', `${outs.length} Kanal Output`]);
-    const named = cams.filter((c) => c.label).length;
-    if (cams.length && !named) {
-      rows.push(['Keterangan Label', 'Nama optik spesifik di-masking browser sampai izin diberikan']);
-    } else {
-      for (const c of cams.slice(0, 3)) if (c.label) rows.push(['· Lensa Teridentifikasi', c.label]);
-    }
-  } catch (err) {
-    rows.push(['Error', `Gagal membaca perangkat media (${String(err)})`]);
-  }
+  rows.push(['Input Mikrofon & Kamera', 'mediaDevices' in navigator ? '✓ Mendukung (MediaStream)' : '✕ Tidak']);
+  rows.push(['Media Recorder (Perekam)', 'MediaRecorder' in window ? '✓ Mendukung Rekam Audio/Video' : '✕ Tidak']);
   return rows;
 }
 
-/** Kapabilitas Web APIs & Keamanan Modern */
-export function collectPlatformFeatures(): Row[] {
+/** Video Codecs Hardware Decoding */
+export function collectCodecs(): Row[] {
   const rows: Row[] = [];
-  const std = window.matchMedia('(display-mode: standalone)').matches;
-  rows.push(['Mode Instalasi PWA', std ? '✓ Standalone (Aplikasi Terpasang)' : 'Tab Browser']);
-  rows.push(['Service Worker Offline', 'serviceWorker' in navigator ? '✓ Aktif & Siap Offline' : '✕ Tidak']);
-  rows.push(['Web Share API (Native Share)', 'share' in navigator ? '✓ Tersedia' : '✕ Tidak']);
-  rows.push(['Async Clipboard API', 'clipboard' in navigator ? '✓ Tersedia' : '✕ Tidak']);
-  rows.push(['Web Notifications Push', 'Notification' in window ? '✓ Didukung' : '✕ Tidak']);
-  rows.push(['Akselerasi WebGL 2.0', hasWebGL2() ? '✓ Aktif' : '✕ Tidak']);
+  const vid = document.createElement('video');
+  const check = (type: string) => (vid.canPlayType(type) ? '✓ Mendukung Hardware/Software' : '✕ Tidak');
+
+  rows.push(['Codec MP4 / H.264 (AVC)', check('video/mp4; codecs="avc1.42E01E"')]);
+  rows.push(['Codec WebM / VP9', check('video/webm; codecs="vp9"')]);
+  rows.push(['Codec AV1 Next-Gen', check('video/mp4; codecs="av01.0.08M.08"')]);
+  rows.push(['Codec HEVC / H.265 (4K)', check('video/mp4; codecs="hevc,hvc1"')]);
+  rows.push(['Audio AAC Standard', check('audio/mp4; codecs="mp4a.40.2"')]);
+  rows.push(['Audio Opus High-Fidelity', check('audio/ogg; codecs="opus"')]);
+  rows.push(['Audio FLAC Lossless', check('audio/flac')]);
+  return rows;
+}
+
+/** Browser Engine & Fitur Modern */
+export function collectWebCapabilities(): Row[] {
+  const rows: Row[] = [];
+  rows.push(['Service Worker (PWA Offline)', 'serviceWorker' in navigator ? '✓ Mendukung Penuh' : '✕ Tidak']);
+  rows.push(['WebGL 2.0 3D Acceleration', hasWebGL2() ? '✓ Aktif' : '✕ Tidak']);
   rows.push(['Next-Gen WebGPU', 'gpu' in navigator ? '✓ Didukung Browser' : '✕ Belum diaktifkan']);
   rows.push(['WebAssembly (WASM)', typeof WebAssembly === 'object' ? '✓ Didukung Penuh' : '✕ Tidak']);
   rows.push(['Biometrik / WebAuthn FIDO2', window.PublicKeyCredential ? '✓ Mendukung Fingerprint/Passkey' : '✕ Tidak']);
@@ -258,4 +210,24 @@ export function collectLocale(): Row[] {
   const off = -new Date().getTimezoneOffset() / 60;
   rows.push(['Selisih Waktu UTC', `${off >= 0 ? '+' : ''}${off} Jam (WIB = +7)`]);
   return rows;
+}
+
+/** Inisialisasi kartu-kartu tambahan */
+export function initExtraInfo() {
+  const toRows = (r: Row[]) => r.map(([label, value]) => ({ label, value, mono: true }));
+
+  // 1. GPU
+  renderRows('card-gpu', toRows(collectGpu()));
+  // 2. Sensor
+  renderRows('card-sensors', toRows(collectSensors()));
+  // 3. Audio
+  renderRows('card-audio', toRows(collectAudioMedia()));
+  // 4. Codecs
+  renderRows('card-codecs', toRows(collectCodecs()));
+  // 5. Capabilities
+  renderRows('card-capabilities', toRows(collectWebCapabilities()));
+  // 6. Memory
+  renderRows('card-memory', toRows(collectMemory()));
+  // 7. Locale
+  renderRows('card-locale', toRows(collectLocale()));
 }
