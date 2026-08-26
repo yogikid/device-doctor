@@ -4,7 +4,6 @@ import {
   Sparkles, 
   MessageSquare, 
   Download, 
-  FileText, 
   RotateCcw, 
   ShieldCheck, 
   AlertTriangle, 
@@ -68,7 +67,7 @@ import {
         </button>
       </div>
 
-      <!-- Streaming / Markdown Output Area -->
+      <!-- Streaming / Formatted HTML Output Area -->
       <div
         id="ai-analysis-box"
         class="min-h-[120px] p-3.5 bg-secondary-background rounded-base border-2 border-border font-sans text-xs leading-relaxed text-foreground flex flex-col justify-center"
@@ -77,7 +76,7 @@ import {
           <Sparkles className="w-6 h-6 text-muted-foreground/60" />
           <p>Klik tombol <b>"Minta Analisis AI"</b> untuk mendapatkan ulasan kondisi HP kamu dari Grok 4.6.</p>
         </div>
-        <div id="ai-content" class="hidden flex flex-col gap-2"></div>
+        <div id="ai-content" class="hidden prose prose-sm max-w-none prose-headings:font-heading prose-headings:font-bold prose-h2:text-base prose-h2:border-b-2 prose-h2:border-border/40 prose-h2:pb-1 prose-h3:text-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ul:pl-4 prose-li:my-0.5"></div>
       </div>
     </div>
 
@@ -98,7 +97,7 @@ import {
         <div class="flex gap-2 items-start bg-card p-2.5 rounded-base border-2 border-border shadow-xs">
           <div class="p-1 rounded bg-main border border-border text-[10px] font-bold">🩺</div>
           <div class="leading-relaxed">
-            <b>Dokter Device:</b> Halo! Saya siap membantu menjawab pertanyaan seputar hasil tes hardware HP kamu. Mau tanya apa sayang? 😊
+            <b>Dokter Device:</b> Halo! Saya sudah membaca seluruh data spesifikasi dan hasil pengujian HP kamu. Ada yang ingin kamu tanyakan mengenai kondisi fisik atau performa hardware perangkatmu?
           </div>
         </div>
       </div>
@@ -108,76 +107,64 @@ import {
         <input
           id="chat-input"
           type="text"
-          placeholder="Contoh: Layar sentuh saya normal gak? Atau aman beli second?"
-          class="flex-1 bg-card border-2 border-border px-3 py-2 text-xs rounded-base font-sans focus:outline-none focus:ring-2 focus:ring-primary shadow-inner"
+          placeholder="Tanya Dokter Device (misal: apakah layarku aman?)..."
+          class="flex-1 bg-secondary-background px-3 py-2 text-xs rounded-base border-2 border-border font-sans focus:outline-none focus:ring-2 focus:ring-primary"
         />
-        <button type="submit" class="dd-btn bg-main px-4 py-2 text-xs font-bold flex items-center gap-1">
+        <button type="submit" class="dd-btn bg-main px-3 py-2 text-xs font-bold flex items-center gap-1">
           <Send className="w-3.5 h-3.5" />
           <span>Kirim</span>
         </button>
       </form>
     </div>
 
-    <!-- Export & Report Tools -->
-    <div class="dd-card p-4 bg-card flex flex-col gap-3" data-accent="neutral">
-      <h3 class="font-heading text-xs font-bold uppercase tracking-wider text-muted-foreground">Ekspor Laporan Diagnostik</h3>
-      <div class="grid grid-cols-2 gap-2.5">
-        <button id="btn-export-json" class="dd-btn bg-secondary-background py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-2">
-          <Download className="w-4 h-4" />
-          <span>Unduh JSON Data</span>
+    <!-- Export & Reset Bar -->
+    <div class="flex flex-wrap gap-2.5 justify-between">
+      <div class="flex gap-2">
+        <button id="btn-export-json" class="dd-btn bg-secondary-background px-3 py-2 text-xs font-bold flex items-center gap-1.5">
+          <Download className="w-3.5 h-3.5" />
+          <span>Unduh JSON</span>
         </button>
-        <button id="btn-export-md" class="dd-btn bg-secondary-background py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-2">
-          <FileText className="w-4 h-4" />
+        <button id="btn-export-md" class="dd-btn bg-secondary-background px-3 py-2 text-xs font-bold flex items-center gap-1.5">
           <span>Salin Markdown</span>
         </button>
       </div>
-      <button id="btn-reset-all" class="dd-btn bg-critical text-white py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5 mt-1">
+      <button id="btn-reset-all" class="dd-btn bg-critical/20 text-critical border-critical px-3 py-2 text-xs font-bold flex items-center gap-1.5">
         <RotateCcw className="w-3.5 h-3.5" />
-        <span>Reset & Ulangi Seluruh Pengujian</span>
+        <span>Mulai Ulang Tes</span>
       </button>
     </div>
   </div>
 
   <script>
-    import { getSession, onSession, resetSession } from '@/lib/diagnostics/store';
+    import { getSession, resetSession } from '@/lib/diagnostics/store';
     import { requestAnalysis, requestChat, renderMarkdown } from '@/lib/diagnostics/ai';
 
-    function updateTallies() {
+    function initSummaryView() {
       const s = getSession();
-      let pass = 0;
-      let warn = 0;
-      let fail = 0;
+      let p = 0, w = 0, f = 0;
 
-      for (const id of Object.keys(s.entries)) {
-        const entry = s.entries[id];
-        if (!entry) continue;
-        if (entry.status === 'pass') pass++;
-        else if (entry.status === 'warn' || entry.status === 'denied') warn++;
-        else if (entry.status === 'fail') fail++;
+      for (const [k, v] of Object.entries(s.entries)) {
+        if (v.status === 'pass') p++;
+        else if (v.status === 'warn' || v.status === 'denied' || v.status === 'unsupported') w++;
+        else if (v.status === 'fail') f++;
       }
 
-      const pEl = document.getElementById('tally-pass');
-      const wEl = document.getElementById('tally-warn');
-      const fEl = document.getElementById('tally-fail');
-      if (pEl) pEl.textContent = String(pass);
-      if (wEl) wEl.textContent = String(warn);
-      if (fEl) fEl.textContent = String(fail);
-    }
-
-    function bindSummaryEvents() {
-      updateTallies();
+      const tp = document.getElementById('tally-pass');
+      const tw = document.getElementById('tally-warn');
+      const tf = document.getElementById('tally-fail');
+      if (tp) tp.textContent = String(p);
+      if (tw) tw.textContent = String(w);
+      if (tf) tf.textContent = String(f);
 
       const btnAnalyze = document.getElementById('btn-analyze-ai');
-      const aiPlaceholder = document.getElementById('ai-placeholder');
       const aiContent = document.getElementById('ai-content');
+      const aiPlaceholder = document.getElementById('ai-placeholder');
 
       btnAnalyze?.addEventListener('click', async () => {
-        if (aiPlaceholder) aiPlaceholder.style.display = 'none';
-        if (aiContent) {
-          aiContent.classList.remove('hidden');
-          aiContent.innerHTML = '<p class="font-data text-xs text-muted-foreground animate-pulse">⏳ Grok 4.6 sedang menganalisis data hardware & kondisi HP kamu…</p>';
-        }
-
+        if (!aiContent || !aiPlaceholder || !btnAnalyze) return;
+        aiPlaceholder.classList.add('hidden');
+        aiContent.classList.remove('hidden');
+        aiContent.innerHTML = '<span class="animate-pulse">Sedang menganalisis snapshot perangkat dengan Grok 4.6…</span>';
         btnAnalyze.setAttribute('disabled', 'true');
 
         let fullText = '';
@@ -222,7 +209,7 @@ import {
         aiBubble.className = 'flex gap-2 items-start bg-card p-2.5 rounded-base border-2 border-border shadow-xs max-w-[90%]';
         aiBubble.innerHTML = `
           <div class="p-1 rounded bg-main border border-border text-[10px] font-bold">🩺</div>
-          <div class="ai-text leading-relaxed"><span class="animate-pulse">Mengetik jawaban…</span></div>
+          <div class="ai-text leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ul:pl-4"><span class="animate-pulse">Mengetik jawaban…</span></div>
         `;
         chatStream?.append(aiBubble);
         chatStream?.scrollTo({ top: chatStream.scrollHeight, behavior: 'smooth' });
@@ -278,9 +265,7 @@ import {
     }
 
     document.addEventListener('astro:page-load', () => {
-      bindSummaryEvents();
+      initSummaryView();
     });
-
-    onSession(() => updateTallies());
   </script>
 </BaseLayout>

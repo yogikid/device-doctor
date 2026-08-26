@@ -1,5 +1,5 @@
 /**
- * Device info dashboard — 14 kategori data via Web API + Cloudflare Edge IP Network.
+ * Device info dashboard — 14 kategori data via Web API + High Entropy Client Hints.
  */
 import { $, setText, setHidden, fmtBytes, fmtPct, esc } from '../dom';
 import { setEntry } from './store';
@@ -155,48 +155,105 @@ function updateOnlineBadge() {
 window.addEventListener('online', updateOnlineBadge);
 window.addEventListener('offline', updateOnlineBadge);
 
-/* ---------- 4. Perangkat & CPU ---------- */
-function initDevice() {
-  const nav = navigator as Navigator & {
-    userAgentData?: { platform?: string; brands?: { brand: string; version: string }[] };
-    deviceMemory?: number;
-  };
+/* ---------- 4. Perangkat & CPU (High Entropy Client Hints) ---------- */
+async function initDevice() {
+  const nav = navigator as any;
   activate('device', 'neutral');
-  const uaBrands = nav.userAgentData?.brands?.map((b) => b.brand).filter((b) => !/Not.A.Brand/i.test(b)) ?? [];
+
+  let modelName = '—';
+  let platformVer = '—';
+  let arch = '—';
+  let bitness = '—';
+
+  // Coba ambil High Entropy Client Hints (NavigatorUAData API)
+  if (nav.userAgentData?.getHighEntropyValues) {
+    try {
+      const highEntropy = await nav.userAgentData.getHighEntropyValues([
+        'model',
+        'platformVersion',
+        'architecture',
+        'bitness',
+        'fullVersionList',
+      ]);
+      if (highEntropy.model) modelName = highEntropy.model;
+      if (highEntropy.platformVersion) platformVer = highEntropy.platformVersion;
+      if (highEntropy.architecture) arch = highEntropy.architecture;
+      if (highEntropy.bitness) bitness = `${highEntropy.bitness}-bit`;
+    } catch {
+      /* fallback */
+    }
+  }
+
+  // Fallback regex jika model belum ketemu (misal Samsung SM-A145F / POCO M3 dll dari UA)
+  if (modelName === '—' || !modelName) {
+    const ua = navigator.userAgent;
+    const match = ua.match(/\b(SM-[A-Z0-9]+|M2[0-9]{3}[A-Z0-9]+|POCO [A-Z0-9 ]+|Redmi [A-Z0-9 ]+|Pixel [A-Z0-9 ]+|iPhone|iPad)\b/i);
+    if (match) modelName = match[1];
+  }
+
+  const uaBrands = nav.userAgentData?.brands?.map((b: any) => b.brand).filter((b: string) => !/Not.A.Brand/i.test(b)) ?? [];
+  const osPlatform = nav.userAgentData?.platform || nav.platform || 'Android / Linux';
+
   renderRows('card-device', [
-    { label: 'Platform Sistem', value: nav.userAgentData?.platform ?? (nav.platform || '—'), mono: true },
-    { label: 'Browser Engine', value: uaBrands.length > 0 ? uaBrands.join(', ') : 'Chromium / WebKit', mono: false },
-    { label: 'Jumlah CPU Core', value: nav.hardwareConcurrency != null ? `${nav.hardwareConcurrency} Core Processing Threads` : '—', mono: true },
+    { label: 'Model Hardware HP', value: modelName !== '—' ? `${modelName} (${resolveCommercialName(modelName)})` : 'Deteksi Model Umum', mono: true },
+    { label: 'Sistem Operasi (OS)', value: `${osPlatform} ${platformVer !== '—' ? `v${platformVer}` : ''} ${bitness !== '—' ? `(${bitness})` : ''}`, mono: false },
+    { label: 'Arsitektur CPU', value: arch !== '—' ? `${arch} (${nav.hardwareConcurrency ?? '?'} Threads)` : `${nav.hardwareConcurrency ?? '?'} CPU Cores`, mono: true },
     { label: 'RAM Perangkat (Est)', value: nav.deviceMemory != null ? `≥ ${nav.deviceMemory} GB RAM` : 'Tidak di-expose', mono: true },
-    { label: 'Maks Multi-Touch Point', value: `${navigator.maxTouchPoints ?? 0} Titik Sentuh`, mono: true },
-    { label: 'Bahasa Sistem', value: navigator.language, mono: true },
+    { label: 'Browser Client', value: uaBrands.length > 0 ? uaBrands.join(', ') : 'Chrome Mobile', mono: false },
+    { label: 'Kapasitas Touch', value: `${navigator.maxTouchPoints ?? 0} Titik Multi-Touch`, mono: true },
   ]);
+
+  setEntry('device_model', { status: 'info', value: modelName !== '—' ? `${modelName} (${resolveCommercialName(modelName)})` : 'Mobile Device' });
+  setEntry('device_os', { status: 'info', value: `${osPlatform} ${platformVer !== '—' ? platformVer : ''}` });
   setEntry('device', {
     status: 'info',
-    value: `${nav.hardwareConcurrency ?? '?'} core · ${nav.deviceMemory ?? '?'}GB RAM`,
-    note: 'RAM dan core CPU adalah estimasi kapabilitas Web API.',
+    value: `${modelName !== '—' ? modelName : osPlatform} · ${nav.hardwareConcurrency ?? '?'} core · ${nav.deviceMemory ?? '?'}GB RAM`,
+    note: `Model: ${modelName}, OS: ${osPlatform} ${platformVer}`,
   });
+
   const uaEl = $('[data-ua]');
   if (uaEl) uaEl.textContent = navigator.userAgent;
+}
+
+/** Kamus resolusi model komersial smartphone populer di Indonesia */
+function resolveCommercialName(model: string): string {
+  const m = model.toUpperCase();
+  if (m.includes('SM-A145F') || m.includes('SM-A145')) return 'Samsung Galaxy A14 4G';
+  if (m.includes('SM-A146')) return 'Samsung Galaxy A14 5G';
+  if (m.includes('SM-A546')) return 'Samsung Galaxy A54 5G';
+  if (m.includes('SM-A556')) return 'Samsung Galaxy A55 5G';
+  if (m.includes('SM-S918')) return 'Samsung Galaxy S23 Ultra';
+  if (m.includes('SM-S928')) return 'Samsung Galaxy S24 Ultra';
+  if (m.includes('M2007J20CG') || m.includes('M2007J20CT')) return 'POCO X3 NFC';
+  if (m.includes('M2102J20SG') || m.includes('M2102J20SI')) return 'POCO X3 Pro';
+  if (m.includes('22011211G')) return 'POCO F4 GT';
+  if (m.includes('23049PCD8G')) return 'POCO F5';
+  if (m.includes('24069PC21G')) return 'POCO F6';
+  return 'Smartphone Device';
 }
 
 /* ---------- 5. Layar & Resolusi ---------- */
 function initScreen() {
   activate('screen', 'neutral');
   const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dpr = window.devicePixelRatio || 1;
   const orientation =
     screen.orientation?.type?.replace('-primary', '').replace('-', ' ') ??
     (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+  
+  const physW = Math.round(screen.width * dpr);
+  const physH = Math.round(screen.height * dpr);
+
   renderRows('card-screen', [
-    { label: 'Resolusi Layar Fisik', value: `${screen.width * window.devicePixelRatio} × ${screen.height * window.devicePixelRatio} px (Aktual)`, mono: true },
-    { label: 'Viewport CSS', value: `${screen.width} × ${screen.height} px`, mono: true },
-    { label: 'Pixel Density (DPR)', value: `${window.devicePixelRatio}× Multiplier`, mono: true },
+    { label: 'Resolusi Layar Fisik', value: `${physW} × ${physH} px (Aktual Hardware)`, mono: true },
+    { label: 'Viewport Virtual CSS', value: `${screen.width} × ${screen.height} px`, mono: true },
+    { label: 'Pixel Density (DPR)', value: `${dpr}× Scale Multiplier`, mono: true },
     { label: 'Orientasi Layar', value: orientation.toUpperCase(), mono: false },
     { label: 'Tema Sistem OS', value: dark ? 'Dark Mode Aktif' : 'Light Mode', mono: false },
   ]);
   setEntry('screen', {
     status: 'info',
-    value: `${screen.width * window.devicePixelRatio}×${screen.height * window.devicePixelRatio} (${screen.width}×${screen.height}@${window.devicePixelRatio}x)`,
+    value: `${physW}×${physH} px (${screen.width}×${screen.height}@${dpr}x)`,
   });
 }
 
@@ -261,7 +318,6 @@ async function initStorage() {
 
 /* ---------- Extra Modules ---------- */
 async function initExtraCards() {
-  // Kualitas Layar (Refresh rate, HDR, Color Gamut)
   try {
     const displayRows = await collectDisplayExtra();
     activate('displayx', 'neutral');
@@ -270,7 +326,6 @@ async function initExtraCards() {
     deactivate('displayx', 'Gagal membaca kualitas layar.');
   }
 
-  // Sensor & Radio
   try {
     const sensorRows = collectSensors();
     activate('sensors', 'neutral');
@@ -279,7 +334,6 @@ async function initExtraCards() {
     deactivate('sensors', 'Gagal mendeteksi sensor.');
   }
 
-  // Codec Media
   try {
     const codecRows = collectCodecs();
     activate('codecs', 'neutral');
@@ -288,7 +342,6 @@ async function initExtraCards() {
     deactivate('codecs', 'Gagal memeriksa codec.');
   }
 
-  // Media Devices
   try {
     const mediaRows = await collectMediaDevices();
     activate('mediadev', 'neutral');
@@ -297,7 +350,6 @@ async function initExtraCards() {
     deactivate('mediadev', 'Gagal membaca perangkat media.');
   }
 
-  // Kapabilitas Web
   try {
     const platformRows = collectPlatformFeatures();
     activate('platform', 'neutral');
@@ -306,7 +358,6 @@ async function initExtraCards() {
     deactivate('platform', 'Gagal membaca fitur web.');
   }
 
-  // Memori JS Heap
   try {
     const memoryRows = collectMemory();
     activate('memory', 'neutral');
@@ -315,7 +366,6 @@ async function initExtraCards() {
     deactivate('memory', 'Memori JS heap tidak tersedia.');
   }
 
-  // Waktu & Locale
   try {
     const localeRows = collectLocale();
     activate('locale', 'neutral');

@@ -1,10 +1,16 @@
 /**
  * Klien AI — bicara ke Worker proxy (/api/ai/*).
- * Dilengkapi dengan Super RAG Context yang mengumpulkan 100% data spesifikasi
- * hardware, jaringan IP/ISP, Web APIs, dan seluruh riwayat hasil pengujian diagnostik.
+ * Dilengkapi dengan Super RAG Context & Markdown Parser berbasis 'marked'.
  */
+import { marked } from 'marked';
 import { getSession } from './store';
 import { buildVerdict } from './engine';
+
+// Konfigurasi marked agar aman dan mendukung line breaks GitHub Flavored Markdown
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
 
 const LABEL: Record<string, string> = {
   touch: 'Layar Sentuh (Multi-Touch Grid)',
@@ -20,13 +26,12 @@ const LABEL: Record<string, string> = {
 };
 
 /**
- * Bangun RAG Snapshot Super Lengkap (Spesifikasi 14 Modul + Hasil Tes + State Browser)
+ * Bangun RAG Snapshot Super Lengkap
  */
 export function buildSnapshot(): Record<string, unknown> {
   const s = getSession();
   const v = buildVerdict();
 
-  // 1. Kumpulkan seluruh hasil tes fisik
   const tests: Record<string, unknown> = {};
   for (const id of Object.keys(s.entries)) {
     const e = s.entries[id];
@@ -39,13 +44,19 @@ export function buildSnapshot(): Record<string, unknown> {
     };
   }
 
-  // 2. Kumpulkan spesifikasi mendalam secara langsung dari Web APIs
   const glInfo = getWebGLInfo();
   const perfMem = getPerfMemory();
   const dtf = Intl.DateTimeFormat().resolvedOptions();
   const nav = navigator as any;
 
   const deepSpecs = {
+    identitas_perangkat: {
+      model_terdeteksi: s.entries['device_model']?.value || '—',
+      os_dan_versi: s.entries['device_os']?.value || '—',
+      platform: nav.userAgentData?.platform || nav.platform || '—',
+      browser_brand: s.entries['browser_brand']?.value || '—',
+      kategori_device: s.entries['device_type']?.value || 'Mobile Smartphone',
+    },
     jaringan_dan_ip: {
       ip_publik_dan_isp: s.entries['ip_network']?.value || 'Memuat...',
       catatan_jaringan: s.entries['ip_network']?.note || '—',
@@ -56,12 +67,10 @@ export function buildSnapshot(): Record<string, unknown> {
       hemat_data: nav.connection?.saveData ? 'Aktif' : 'Nonaktif',
     },
     hardware_dan_cpu: {
-      platform_os: nav.userAgentData?.platform || nav.platform || '—',
       cpu_cores_threads: nav.hardwareConcurrency ? `${nav.hardwareConcurrency} Core` : '—',
       ram_kapasitas_est: nav.deviceMemory ? `≥ ${nav.deviceMemory} GB RAM` : 'Tidak di-expose',
       max_touch_points: `${navigator.maxTouchPoints ?? 0} Titik Sentuh`,
       bahasa_browser: navigator.language,
-      daftar_bahasa: navigator.languages?.join(', ') || navigator.language,
     },
     layar_dan_display: {
       resolusi_aktual: `${screen.width * (window.devicePixelRatio || 1)} × ${screen.height * (window.devicePixelRatio || 1)} px`,
@@ -121,7 +130,7 @@ export function buildSnapshot(): Record<string, unknown> {
     rag_spesifikasi_lengkap_perangkat: deepSpecs,
     user_agent_mentah: navigator.userAgent,
     panduan_analisis:
-      'Semua data ini dibaca dari browser user. Kamu memiliki seluruh konteks spesifikasi mulai dari IP/ISP, CPU, GPU, Layar, Sensor, Storage, hingga Hasil Tes Hardware.',
+      'Semua data ini dibaca dari browser user. Kamu memiliki seluruh konteks spesifikasi mulai dari Model HP, IP/ISP, CPU, GPU, Layar, Sensor, Storage, hingga Hasil Tes Hardware.',
   };
 }
 
@@ -221,52 +230,11 @@ export function requestChat(
   return streamPost('/api/ai/chat', { question, history, snapshot: buildSnapshot() }, h, signal);
 }
 
-/** Markdown → HTML minimal */
+/** Render Markdown ke HTML terstruktur menggunakan parser marked */
 export function renderMarkdown(md: string): string {
-  const esc = md
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  const lines = esc.split('\n');
-  let html = '';
-  let inList = false;
-
-  const closeList = () => {
-    if (inList) {
-      html += '</ul>';
-      inList = false;
-    }
-  };
-
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-    if (/^##\s+/.test(line)) {
-      closeList();
-      html += `<h4 class="mt-3 font-heading text-sm font-bold uppercase tracking-wide text-primary">${line.replace(/^##\s+/, '')}</h4>`;
-    } else if (/^#\s+/.test(line)) {
-      closeList();
-      html += `<h3 class="mt-3 font-heading text-base font-bold">${line.replace(/^#\s+/, '')}</h3>`;
-    } else if (/^[-*]\s+/.test(line)) {
-      if (!inList) {
-        html += '<ul class="ml-4 list-disc space-y-1">';
-        inList = true;
-      }
-      html += `<li>${inline(line.replace(/^[-*]\s+/, ''))}</li>`;
-    } else if (line === '') {
-      closeList();
-    } else {
-      closeList();
-      html += `<p class="mt-2">${inline(line)}</p>`;
-    }
+  try {
+    return marked.parse(md) as string;
+  } catch {
+    return md;
   }
-  closeList();
-  return html;
-}
-
-function inline(s: string): string {
-  return s
-    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-    .replace(/`([^`]+)`/g, '<code class="rounded bg-secondary-background px-1 font-data text-xs">$1</code>')
-    .replace(/\*([^*]+)\*/g, '<i>$1</i>');
 }
