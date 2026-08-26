@@ -1,0 +1,12 @@
+// Wrangler config — deploy sebagai Workers Static Assets.
+// Full static (SSG, tanpa adapter): astro build → dist/ → wrangler deploy.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "device-doctor",
+  "compatibility_date": "2026-08-01",
+  // nodejs_compat wajib kalau nanti nambah adapter SSR — aman diset dari sekarang.
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist"
+  }
+}

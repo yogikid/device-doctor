@@ -1,0 +1,190 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import InfoTabs from '@/components/InfoTabs.tsx';
+import ResetButton from '@/components/ResetButton.tsx';
+
+const infoCards = [
+  {
+    id: 'battery',
+    title: 'Baterai',
+    desc: 'Level daya & status cas saat ini — persentase saja, bukan battery health.',
+  },
+  {
+    id: 'connection',
+    title: 'Koneksi',
+    desc: 'Online/offline + estimasi kualitas jaringan (effectiveType, RTT).',
+  },
+  {
+    id: 'device',
+    title: 'Perangkat & Browser',
+    desc: 'Platform, core CPU, RAM approx, touch points, bahasa.',
+  },
+  {
+    id: 'screen',
+    title: 'Layar',
+    desc: 'Resolusi, pixel ratio, orientasi, mode warna OS.',
+  },
+  {
+    id: 'gpu',
+    title: 'GPU',
+    desc: 'Renderer & vendor chipset via WebGL debug info.',
+  },
+  {
+    id: 'storage',
+    title: 'Penyimpanan',
+    desc: 'Kuota & pemakaian storage origin browser (bukan kapasitas fisik HP).',
+  },
+];
+
+const tests = [
+  { id: 'touch', emoji: '👆', name: 'Layar Sentuh', desc: 'Grid kotak sentuh — deteksi dead zone.', jenis: 'Manual' },
+  { id: 'display', emoji: '🌈', name: 'Layar / Dead Pixel', desc: 'Flash 5 warna solid — cari piksel mati.', jenis: 'Manual' },
+  { id: 'speaker', emoji: '🔊', name: 'Speaker', desc: 'Nada kiri & kanan via Web Audio.', jenis: 'Manual' },
+  { id: 'mic', emoji: '🎤', name: 'Mikrofon', desc: 'Level meter live dari input mic.', jenis: 'Semi-otomatis' },
+  { id: 'camera', emoji: '📷', name: 'Kamera', desc: 'Preview live + ganti depan/belakang.', jenis: 'Manual' },
+  { id: 'vibrate', emoji: '📳', name: 'Getar', desc: 'Pola getar via navigator.vibrate.', jenis: 'Manual' },
+  { id: 'motion', emoji: '🧭', name: 'Sensor Gerak', desc: 'Bubble level dari gyroscope/accelerometer.', jenis: 'Semi-otomatis' },
+  { id: 'benchmark', emoji: '⚡', name: 'Performa CPU/GPU', desc: 'Benchmark ±6 detik, skor FPS indikatif.', jenis: 'Otomatis' },
+  { id: 'gps', emoji: '🛰️', name: 'GPS', desc: 'Presisi kuncian satelit (accuracy meter).', jenis: 'Otomatis' },
+];
+---
+
+<BaseLayout>
+  <main class="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pb-24 pt-8">
+    <!-- Hero -->
+    <header class="flex flex-col items-center gap-3 text-center">
+      <h1 class="font-heading text-3xl font-extrabold leading-tight sm:text-4xl">
+        Device Doctor
+      </h1>
+      <p class="max-w-md text-sm text-muted-foreground">
+        Cek kondisi HP kamu langsung dari browser. Jujur soal keterbatasan:
+        hasilnya <b>indikasi</b> dari data yang bisa dibaca browser — bukan diagnosis pasti.
+      </p>
+      <span
+        id="net-status"
+        class="inline-block rounded-base border-2 border-border px-2 py-0.5 font-data text-xs"
+      >
+        Online?
+      </span>
+      <div class="mt-1 w-full">
+        <InfoTabs client:load />
+      </div>
+    </header>
+
+    <!-- PANEL INFO -->
+    <section id="panel-info">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {
+          infoCards.map((c) => (
+            <article
+              id={`card-${c.id}`}
+              class="flex flex-col gap-3 rounded-base border-[3px] border-border bg-card p-4"
+              style="box-shadow:4px 4px 0 0 var(--border)"
+            >
+              <h3 class="font-heading font-bold">{c.title}</h3>
+              <div data-body class="min-h-[72px]" data-rows="" />
+              <p data-note class="text-xs text-muted-foreground" />
+            </article>
+          ))
+        }
+      </div>
+
+      <article
+        id="card-location"
+        class="mt-4 flex flex-col gap-2 rounded-base border-[3px] border-border bg-card p-4"
+        style="box-shadow:4px 4px 0 0 var(--border)"
+      >
+        <h3 class="font-heading font-bold">Lokasi</h3>
+        <p class="text-xs text-muted-foreground">
+          Lokasi nggak dikirim ke mana pun — dipakai lokal di device-mu saja,
+          cuma buat lihat presisi GPS.
+        </p>
+        <button
+          id="btn-location"
+          class="w-fit rounded-base border-2 border-border bg-secondary-background px-3 py-1.5 text-sm font-semibold"
+          style="box-shadow:3px 3px 0 0 var(--border)"
+        >
+          🧭 Cek Lokasi
+        </button>
+        <p id="loc-result" class="font-data text-sm" />
+      </article>
+
+      <article
+        id="card-ua"
+        class="mt-4 flex flex-col gap-2 rounded-base border-[3px] border-border bg-card p-4"
+        style="box-shadow:4px 4px 0 0 var(--border)"
+      >
+        <h3 class="font-heading font-bold">User Agent Mentah</h3>
+        <p data-ua class="font-data text-xs break-all text-muted-foreground" />
+      </article>
+    </section>
+
+    <!-- PANEL TESTS -->
+    <section id="panel-tests" hidden>
+      <p class="mb-3 text-xs text-muted-foreground">
+        Jalankan test satu-satu. Hasil tiap test kecatet otomatis buat ringkasan akhir.
+        Kalau tombol nggak muncul/tidak aktif, itu keterbatasan browser — bukan HP-mu yang rusak.
+      </p>
+      <div class="flex flex-col gap-3">
+        {
+          tests.map((t) => (
+            <div
+              id={`test-${t.id}`}
+              class="flex items-start justify-between gap-3 rounded-base border-[3px] border-border bg-card p-4"
+              style="box-shadow:4px 4px 0 0 var(--border)"
+            >
+              <div>
+                <h3 class="font-heading font-bold">
+                  {t.emoji} {t.name}
+                </h3>
+                <p class="text-sm text-muted-foreground">{t.desc}</p>
+                <p class="text-xs text-muted-foreground">Jenis: {t.jenis}</p>
+                {t.id === 'vibrate' && (
+                  <p data-vibrate-msg hidden class="mt-1 text-xs text-muted-foreground" />
+                )}
+              </div>
+              <div class="flex shrink-0 flex-col items-end gap-1.5">
+                <button
+                  data-test={t.id}
+                  class="rounded-base border-2 border-border bg-main px-3 py-1.5 text-sm font-semibold"
+                  style="box-shadow:3px 3px 0 0 var(--border)"
+                >
+                  Mulai
+                </button>
+                <span
+                  data-status={t.id}
+                  class="inline-block rounded-base border-2 border-border px-2 py-0.5 text-[11px] font-semibold"
+                />
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- PANEL RINGKASAN -->
+    <section id="panel-ringkasan" hidden>
+      <div id="summary-box" />
+      <div class="mt-4 flex items-center justify-between gap-3">
+        <span id="progress-text" class="font-data text-xs text-muted-foreground" />
+        <button
+          id="btn-summary"
+          class="rounded-base border-2 border-border bg-secondary-background px-3 py-1.5 text-sm font-semibold"
+          style="box-shadow:3px 3px 0 0 var(--border)"
+        >
+          🔄 Perbarui
+        </button>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <ResetButton client:visible />
+      </div>
+    </section>
+
+    <footer class="pt-2 text-center text-xs text-muted-foreground">
+      Device Doctor · indikasi berbasis browser, bukan pengganti alat service resmi.
+    </footer>
+  </main>
+
+  <!-- Overlay fullscreen buat test interaktif -->
+  <div id="test-overlay" class="test-overlay" data-active="false" />
+</BaseLayout>

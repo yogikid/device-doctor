@@ -1,0 +1,156 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/*
+  Device Doctor — Softened Neo-Brutalism
+  Border tebal, hard offset shadow tanpa blur, radius minim,
+  palette pastel sage yang tenang. Mustard (#F3D57E) HANYA buat stempel diagnosis.
+*/
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #edf2ed; /* sage mist */
+  --foreground: #26241f; /* border_ink */
+
+  --card: #ffffff;
+  --card-foreground: #26241f;
+
+  --popover: #ffffff;
+  --popover-foreground: #26241f;
+
+  --primary: #9fc9b0; /* dusty sage green */
+  --primary-foreground: #26241f;
+
+  --secondary: #f0bfa0; /* peach pudar */
+  --secondary-foreground: #26241f;
+
+  --muted: #e7eee8;
+  --muted-foreground: #66655d;
+
+  --accent: #dce8de;
+  --accent-foreground: #26241f;
+
+  --destructive: #dfa3a3; /* dusty rose — kritis tapi tetap soft */
+  --destructive-foreground: #26241f;
+
+  --border: #26241f;
+  --input: #26241f;
+  --ring: #26241f;
+
+  /* Status semantik */
+  --status-healthy: #9fc9b0;
+  --status-attention: #f0bfa0;
+  --status-critical: #dfa3a3;
+  --signature: #f3d57e; /* mustard — khusus stempel diagnosis */
+
+  --radius-base: 3px;
+
+  --font-base: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Space Grotesk', var(--font-base);
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-healthy: var(--status-healthy);
+  --color-attention: var(--status-attention);
+  --color-critical: var(--status-critical);
+  --color-signature: var(--signature);
+
+  /* Token internal neobrutalism-components → dipetakan ke palet sage kita.
+     bg-main dipakai button/badge primary; main-foreground = teks di atasnya. */
+  --color-main: var(--primary);
+  --color-main-foreground: var(--primary-foreground);
+  --color-secondary-background: var(--muted);
+
+  --font-base: var(--font-base);
+  --font-heading: var(--font-heading);
+  --font-mono: var(--font-mono);
+
+  --radius-base: var(--radius-base);
+  --shadow-shadow: 5px 5px 0 0 var(--border);
+  --shadow-shadow-sm: 3px 3px 0 0 var(--border);
+
+  /* Hard offset translate saat hover (shadow "naik" ke elemen) */
+  --spacing-boxShadowX: 5px;
+  --spacing-boxShadowY: 5px;
+  --spacing-reverseBoxShadowX: -5px;
+  --spacing-reverseBoxShadowY: -5px;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-base);
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--signature);
+    color: var(--foreground);
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+/* Angka & string mentah WAJIB mono — biar user langsung bedain fakta vs penjelasan */
+@utility font-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stempel diagnosis — SATU-SATUNYA elemen pakai mustard */
+@utility stamp-diagnosis {
+  display: inline-block;
+  transform: rotate(-4deg);
+  background: var(--signature);
+  border: 3px solid var(--border);
+  border-radius: var(--radius-base);
+  box-shadow: 5px 5px 0 0 var(--border);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.25rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+/* Overlay fullscreen buat test layar/kamera/dll */
+.test-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--background);
+}
+.test-overlay[data-active='true'] {
+  display: block;
+}
