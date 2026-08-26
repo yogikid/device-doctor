@@ -1,0 +1,204 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { 
+  Touchpad, 
+  Tv, 
+  Volume2, 
+  Mic, 
+  Camera, 
+  Vibrate, 
+  Compass, 
+  Zap, 
+  Navigation,
+  Play,
+  CheckCircle2
+} from 'lucide-react';
+
+const testList = [
+  { id: 'touch', icon: 'Touchpad', name: 'Layar Sentuh (Multi-Touch Grid)', desc: 'Matriks sentuh edge-to-edge untuk mendeteksi dead zone sentuhan.' },
+  { id: 'display', icon: 'Tv', name: 'Dead Pixel & Layar Solid', desc: '8 warna solid fullscreen murni (Red, Green, Blue, Putih, Hitam, Kuning, Cyan, Magenta).' },
+  { id: 'speaker', icon: 'Volume2', name: 'Speaker Stereo (L / R)', desc: 'Pengecekan isolasi suara kanal kiri (600Hz) & kanan (800Hz).' },
+  { id: 'mic', icon: 'Mic', name: 'Mikrofon Real-Time Meter', desc: 'Pengujian sensitivitas penangkapan desibel suara live mikrofon.' },
+  { id: 'camera', icon: 'Camera', name: 'Kamera Depan & Belakang', desc: 'Preview stream video hardware dengan opsi alih lensa sensor.' },
+  { id: 'vibrate', icon: 'Vibrate', name: 'Motor Getaran HP (Haptic)', desc: 'Sinyal getaran haptic langsung via gesture Chromium API.' },
+  { id: 'motion', icon: 'Compass', name: 'Sensor Gerak & Gyroscope', desc: 'Bola leveling 3D real-time mendeteksi kemiringan sudut HP.' },
+  { id: 'benchmark', icon: 'Zap', name: 'Stress Test CPU & GPU', desc: 'Kalkulasi beban matriks matematika floating-point & render FPS.' },
+  { id: 'gps', icon: 'Navigation', name: 'Presisi Kuncian GPS', desc: 'Uji tingkat akurasi radius kuncian satelit posisi perangkat.' },
+];
+---
+
+<BaseLayout title="Periksa Hardware · Device Doctor" description="Jalankan rangkaian tes interaktif untuk mengecek kesehatan fisik komponen HP kamu.">
+  <div class="flex flex-col gap-4">
+    <!-- Header Progress Card -->
+    <div class="dd-card p-4 bg-card flex flex-col gap-3 relative overflow-hidden" data-accent="healthy">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-heading text-xl font-extrabold">Uji Diagnostik Interaktif</h2>
+          <p class="text-xs text-muted-foreground mt-0.5">Jalankan tes satu per satu untuk merekam kondisi fisik HP.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <svg class="dd-ring" width="48" height="48" viewBox="0 0 54 54" aria-hidden="true">
+            <circle cx="27" cy="27" r="22" fill="none" stroke="var(--secondary-background)" stroke-width="6"></circle>
+            <circle
+              id="progress-ring"
+              cx="27" cy="27" r="22" fill="none"
+              stroke="var(--status-healthy)" stroke-width="6" stroke-linecap="round"
+              stroke-dasharray="138.2" stroke-dashoffset="138.2"></circle>
+          </svg>
+          <div class="text-right">
+            <span id="progress-text" class="font-data text-xs font-bold block">0/9 selesai</span>
+            <span class="text-[10px] text-muted-foreground">Status Tes</span>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-run-first" class="dd-btn bg-main py-2 px-4 text-xs font-extrabold flex items-center justify-center gap-2 w-full">
+        <Play className="w-3.5 h-3.5 fill-current" />
+        Mulai Rangkaian Tes Dari Awal (Layar Sentuh)
+      </button>
+    </div>
+
+    <!-- Daftar Tes Card -->
+    <div class="flex flex-col gap-3">
+      {
+        testList.map((t) => (
+          <div id={`test-card-${t.id}`} class="dd-card p-4 bg-card flex items-start justify-between gap-3 relative" data-accent="neutral">
+            <div class="flex items-start gap-3 min-w-0">
+              <div class="p-2 rounded-base bg-secondary-background border-2 border-border shrink-0 mt-0.5">
+                {t.icon === 'Touchpad' && <Touchpad className="w-4 h-4 text-primary" />}
+                {t.icon === 'Tv' && <Tv className="w-4 h-4 text-primary" />}
+                {t.icon === 'Volume2' && <Volume2 className="w-4 h-4 text-primary" />}
+                {t.icon === 'Mic' && <Mic className="w-4 h-4 text-primary" />}
+                {t.icon === 'Camera' && <Camera className="w-4 h-4 text-primary" />}
+                {t.icon === 'Vibrate' && <Vibrate className="w-4 h-4 text-primary" />}
+                {t.icon === 'Compass' && <Compass className="w-4 h-4 text-primary" />}
+                {t.icon === 'Zap' && <Zap className="w-4 h-4 text-primary" />}
+                {t.icon === 'Navigation' && <Navigation className="w-4 h-4 text-primary" />}
+              </div>
+              <div class="min-w-0">
+                <h3 class="font-heading text-sm font-bold tracking-tight">{t.name}</h3>
+                <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t.desc}</p>
+                <div id={`res-text-${t.id}`} class="mt-1 font-data text-[11px] font-semibold text-primary"></div>
+              </div>
+            </div>
+
+            <div class="flex flex-col items-end gap-2 shrink-0">
+              <button
+                data-test={t.id}
+                class="dd-btn bg-main px-3.5 py-1.5 text-xs font-bold"
+              >
+                Mulai
+              </button>
+              <span
+                data-status={t.id}
+                class="inline-block rounded-base border-2 border-border px-2 py-0.5 text-[10px] font-bold bg-secondary-background text-muted-foreground"
+              >
+                … Belum
+              </span>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+
+  <script>
+    import { 
+      startTouchTest, 
+      startDisplayTest, 
+      startSpeakerTest, 
+      startMicTest, 
+      startCameraTest, 
+      startVibrateTest, 
+      startMotionTest, 
+      startBenchmark, 
+      startGpsTest 
+    } from '@/lib/diagnostics/tests';
+    import { getSession, onSession, completedTestCount } from '@/lib/diagnostics/store';
+    import { TEST_IDS } from '@/lib/diagnostics/types';
+
+    const STARTERS: Record<string, () => void> = {
+      touch: startTouchTest,
+      display: startDisplayTest,
+      speaker: () => void startSpeakerTest(),
+      mic: () => void startMicTest(),
+      camera: () => void startCameraTest(),
+      vibrate: startVibrateTest,
+      motion: () => void startMotionTest(),
+      benchmark: startBenchmark,
+      gps: startGpsTest,
+    };
+
+    const CHIP_STYLE: Record<string, string> = {
+      pass: 'bg-healthy text-black',
+      warn: 'bg-attention text-black',
+      fail: 'bg-critical text-white',
+      denied: 'bg-attention text-black',
+      unsupported: 'bg-secondary-background text-muted-foreground',
+      info: 'bg-accent text-black',
+      pending: 'bg-secondary-background text-muted-foreground',
+    };
+
+    const CHIP_TEXT: Record<string, string> = {
+      pass: '✓ Lolos',
+      warn: '! Catatan',
+      fail: '✕ Bermasalah',
+      denied: '⊘ Ditolak',
+      unsupported: '— Tak Didukung',
+      info: 'i Terbaca',
+      pending: '… Belum',
+    };
+
+    function refreshUi() {
+      const s = getSession();
+      for (const id of TEST_IDS) {
+        const chip = document.querySelector(`[data-status="${id}"]`);
+        const res = document.getElementById(`res-text-${id}`);
+        const card = document.getElementById(`test-card-${id}`);
+        const entry = s.entries[id];
+        const st = entry?.status ?? 'pending';
+
+        if (chip) {
+          chip.className = `inline-block rounded-base border-2 border-border px-2 py-0.5 text-[10px] font-bold ${CHIP_STYLE[st] ?? CHIP_STYLE.pending}`;
+          chip.textContent = CHIP_TEXT[st] ?? CHIP_TEXT.pending;
+        }
+
+        if (res && entry) {
+          res.textContent = entry.value ? `${entry.value} · ${entry.note ?? ''}` : entry.note ?? '';
+        }
+
+        if (card) {
+          card.dataset.accent = st === 'pass' ? 'healthy' : st === 'fail' ? 'critical' : st === 'warn' ? 'attention' : 'neutral';
+        }
+      }
+
+      const done = completedTestCount(TEST_IDS);
+      const progText = document.getElementById('progress-text');
+      const ring = document.getElementById('progress-ring') as SVGCircleElement | null;
+      if (progText) progText.textContent = `${done}/${TEST_IDS.length} selesai`;
+      if (ring) {
+        const perimeter = 138.23;
+        ring.style.strokeDashoffset = String(perimeter - (done / TEST_IDS.length) * perimeter);
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (!target) return;
+
+      const btn = target.closest<HTMLElement>('[data-test]');
+      if (btn) {
+        const id = btn.dataset.test!;
+        STARTERS[id]?.();
+        return;
+      }
+
+      if (target.closest('#btn-run-first')) {
+        startTouchTest();
+      }
+    });
+
+    onSession(() => refreshUi());
+    refreshUi();
+  </script>
+</BaseLayout>

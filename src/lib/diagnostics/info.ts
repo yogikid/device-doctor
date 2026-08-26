@@ -66,7 +66,7 @@ interface BatteryLike extends EventTarget {
 
 async function initBattery() {
   if (!('getBattery' in navigator)) {
-    deactivate('battery', 'API Baterai tidak didukung di browser ini (hanya Chromium desktop/Android).');
+    deactivate('battery', 'API Baterai tidak didukung di browser ini (hanya Chromium Android/Desktop).');
     return;
   }
   try {
@@ -75,13 +75,13 @@ async function initBattery() {
     const paint = () => {
       const level = Math.round(bat.level * 100);
       renderRows('card-battery', [
-        { label: 'Level Daya', value: `${level}%`, mono: true },
-        { label: 'Status Cas', value: bat.charging ? 'Sedang di-cas ⚡' : 'Baterai (Discharging)', mono: false },
+        { label: 'Level Daya Saat Ini', value: `${level}%`, mono: true },
+        { label: 'Status Pengisian', value: bat.charging ? 'Sedang di-cas ⚡' : 'Memakai Baterai (Discharging)', mono: false },
       ]);
       setEntry('battery', {
         status: 'info',
         value: `${level}%${bat.charging ? ' (cas)' : ''}`,
-        note: 'Persentase daya saat ini — browser tidak bisa membaca battery health fisik.',
+        note: 'Persentase daya saat ini — browser tidak bisa membaca battery health fisik (wear level) demi privasi.',
       });
     };
     paint();
@@ -95,7 +95,7 @@ async function initBattery() {
 /* ---------- Koneksi ---------- */
 function initConnection() {
   const nav = navigator as Navigator & {
-    connection?: { effectiveType?: string; downlink?: number; rtt?: number };
+    connection?: { effectiveType?: string; downlink?: number; rtt?: number; saveData?: boolean };
   };
   const conn = nav.connection;
   if (!conn) {
@@ -108,10 +108,11 @@ function initConnection() {
   const paint = () => {
     const online = navigator.onLine;
     renderRows('card-connection', [
-      { label: 'Status', value: online ? 'Online' : 'Offline', mono: false },
-      { label: 'Kualitas (estimasi)', value: conn.effectiveType?.toUpperCase() ?? '—', mono: true },
-      { label: 'Downlink', value: conn.downlink != null ? `≈ ${conn.downlink} Mbps` : '—', mono: true },
-      { label: 'RTT', value: conn.rtt != null ? `≈ ${conn.rtt} ms` : '—', mono: true },
+      { label: 'Status Jaringan', value: online ? 'Online Terhubung' : 'Offline Terputus', mono: false },
+      { label: 'Tipe Koneksi (Est)', value: conn.effectiveType?.toUpperCase() ?? '—', mono: true },
+      { label: 'Estimasi Downlink', value: conn.downlink != null ? `≈ ${conn.downlink} Mbps` : '—', mono: true },
+      { label: 'Round Trip Time (RTT)', value: conn.rtt != null ? `≈ ${conn.rtt} ms` : '—', mono: true },
+      { label: 'Mode Hemat Data', value: conn.saveData ? 'Aktif' : 'Nonaktif', mono: false },
     ]);
     let st: Status = 'info';
     let note: string | undefined;
@@ -120,7 +121,7 @@ function initConnection() {
       note = 'Perangkat sedang offline.';
     } else if (conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g') {
       st = 'warn';
-      note = 'Koneksi lambat terdeteksi — kemungkinan bukan masalah HP.';
+      note = 'Koneksi lambat terdeteksi — kemungkinan sinyal provider lemah.';
     }
     setEntry('connection', {
       status: st,
@@ -138,7 +139,7 @@ function updateOnlineBadge() {
   const el = $('#net-status');
   if (el) {
     el.textContent = navigator.onLine ? '● Online' : '○ Offline';
-    el.className = `dd-btn px-2 py-0.5 font-data text-xs ${navigator.onLine ? 'bg-healthy' : 'bg-critical text-white'}`;
+    el.className = `dd-btn px-2.5 py-1 font-data text-xs ${navigator.onLine ? 'bg-healthy font-bold' : 'bg-critical text-white font-bold'}`;
   }
 }
 window.addEventListener('online', updateOnlineBadge);
@@ -150,20 +151,20 @@ function initDevice() {
     userAgentData?: { platform?: string; brands?: { brand: string; version: string }[] };
     deviceMemory?: number;
   };
-  activate('card-device', 'neutral');
+  activate('device', 'neutral');
   const uaBrands = nav.userAgentData?.brands?.map((b) => b.brand).filter((b) => !/Not.A.Brand/i.test(b)) ?? [];
   renderRows('card-device', [
-    { label: 'Platform', value: nav.userAgentData?.platform ?? (nav.platform || '—'), mono: true },
-    { label: 'Brand Browser', value: uaBrands.length > 0 ? uaBrands.join(', ') : '(via UA string)', mono: false },
-    { label: 'Core CPU', value: nav.hardwareConcurrency != null ? `${nav.hardwareConcurrency} core` : '—', mono: true },
-    { label: 'RAM (approx)', value: nav.deviceMemory != null ? `≥ ${nav.deviceMemory} GB` : 'tidak tersedia', mono: true },
-    { label: 'Touch Points', value: String(navigator.maxTouchPoints ?? 0), mono: true },
-    { label: 'Bahasa', value: navigator.language, mono: true },
+    { label: 'Platform Sistem', value: nav.userAgentData?.platform ?? (nav.platform || '—'), mono: true },
+    { label: 'Browser Engine', value: uaBrands.length > 0 ? uaBrands.join(', ') : 'Chromium / WebKit', mono: false },
+    { label: 'Jumlah CPU Core', value: nav.hardwareConcurrency != null ? `${nav.hardwareConcurrency} Core` : '—', mono: true },
+    { label: 'RAM Perangkat (Est)', value: nav.deviceMemory != null ? `≥ ${nav.deviceMemory} GB` : 'Tidak di-expose', mono: true },
+    { label: 'Maks Multi-Touch Point', value: `${navigator.maxTouchPoints ?? 0} Titik`, mono: true },
+    { label: 'Bahasa Sistem', value: navigator.language, mono: true },
   ]);
   setEntry('device', {
     status: 'info',
     value: `${nav.hardwareConcurrency ?? '?'} core · ${nav.deviceMemory ?? '?'}GB RAM`,
-    note: 'RAM dan core CPU adalah estimasi browser.',
+    note: 'RAM dan core CPU adalah estimasi kapabilitas Web API.',
   });
   const uaEl = $('[data-ua]');
   if (uaEl) uaEl.textContent = navigator.userAgent;
@@ -177,10 +178,10 @@ function initScreen() {
     screen.orientation?.type?.replace('-primary', '').replace('-', ' ') ??
     (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
   renderRows('card-screen', [
-    { label: 'Resolusi', value: `${screen.width} × ${screen.height} px`, mono: true },
-    { label: 'Pixel Ratio', value: `${window.devicePixelRatio}×`, mono: true },
-    { label: 'Orientasi', value: orientation, mono: false },
-    { label: 'Mode Warna', value: dark ? 'Dark Mode' : 'Light Mode', mono: false },
+    { label: 'Resolusi Layar', value: `${screen.width} × ${screen.height} px`, mono: true },
+    { label: 'Pixel Ratio (DPR)', value: `${window.devicePixelRatio}×`, mono: true },
+    { label: 'Orientasi Layar', value: orientation.toUpperCase(), mono: false },
+    { label: 'Tema Sistem OS', value: dark ? 'Dark Mode' : 'Light Mode', mono: false },
   ]);
   setEntry('screen', {
     status: 'info',
@@ -199,15 +200,15 @@ function initGPU() {
     }
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
     if (!dbg) {
-      deactivate('gpu', 'Browser menyembunyikan identitas GPU (kebijakan privasi browser).');
+      deactivate('gpu', 'Browser menyembunyikan identitas GPU (kebijakan anti-fingerprinting).');
       return;
     }
     const renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) as string;
     const vendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) as string;
     activate('gpu', 'neutral');
     renderRows('card-gpu', [
-      { label: 'Renderer', value: renderer || '—', mono: true },
-      { label: 'Vendor', value: vendor || '—', mono: true },
+      { label: 'Chipset GPU / Renderer', value: renderer || '—', mono: true },
+      { label: 'Vendor GPU', value: vendor || '—', mono: true },
     ]);
     setEntry('gpu', { status: 'info', value: renderer });
   } catch {
@@ -230,16 +231,17 @@ async function initStorage() {
     const quota = est.quota;
     const usage = est.usage ?? 0;
     const ratio = quota > 0 ? usage / quota : 0;
-    activate('storage', 'neutral');
+    activate('storage', 'healthy');
     renderRows('card-storage', [
-      { label: 'Terpakai (Origin)', value: fmtBytes(usage), mono: true },
-      { label: 'Kuota (Origin)', value: fmtBytes(quota), mono: true },
-      { label: 'Rasio', value: fmtPct(ratio), mono: true },
+      { label: 'Terpakai (Situs Ini)', value: fmtBytes(usage), mono: true },
+      { label: 'Kuota Tersedia (Origin)', value: fmtBytes(quota), mono: true },
+      { label: 'Rasio Terpakai', value: fmtPct(ratio), mono: true },
+      { label: 'Status Alokasi', value: quota >= 1e9 ? 'Tersedia Luas (>1 GB)' : 'Terbatas', mono: false },
     ]);
     setEntry('storage', {
-      status: ratio > 0.9 ? 'warn' : 'info',
-      value: `${fmtBytes(usage)} / ${fmtBytes(quota)} (${fmtPct(ratio)})`,
-      note: 'Ini kuota storage browser origin, bukan kapasitas internal HP.',
+      status: 'info',
+      value: `${fmtBytes(usage)} / ${fmtBytes(quota)} kuota origin`,
+      note: 'Kuota penyimpanan browser origin (bukan kapasitas memori flash total HP karena sandbox keamanan web).',
     });
   } catch {
     deactivate('storage', 'Estimasi penyimpanan gagal dibaca.');

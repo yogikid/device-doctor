@@ -33,18 +33,23 @@ export function setHidden(el: Element | null | undefined, hidden: boolean) {
   if (el instanceof HTMLElement) el.hidden = hidden;
 }
 
-/** Byte → string manusiawi (GB/MB) pakai desimal ala vendor storage. */
+/** Byte → string manusiawi (GB/MB/KB/B) */
 export function fmtBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '—';
-  const gb = bytes / 1e9;
-  if (gb >= 1) return `${gb.toFixed(1)} GB`;
-  const mb = bytes / 1e6;
-  return `${mb.toFixed(0)} MB`;
+  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  if (bytes === 0) return '0 B';
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  let v = bytes;
+  while (v >= 1024 && i < u.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
 }
 
 export function fmtPct(ratio: number): string {
-  if (!Number.isFinite(ratio)) return '—';
-  return `${Math.round(ratio * 100)}%`;
+  if (!Number.isFinite(ratio)) return '0%';
+  return `${(ratio * 100).toFixed(1)}%`;
 }
 
 /** Deteksi browser kasar — cuma buat pesan keterbatasan, bukan fingerprinting. */

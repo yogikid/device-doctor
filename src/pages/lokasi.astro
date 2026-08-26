@@ -1,0 +1,196 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { MapPin, Navigation, Compass, AlertCircle, RefreshCw } from 'lucide-react';
+---
+
+<BaseLayout title="Peta & Sensor GPS · Device Doctor" description="Inspeksi presisi chip GPS, radius akurasi koordinat, dan peta interaktif lokal.">
+  <div class="flex flex-col gap-4">
+    <!-- Header Card -->
+    <div class="dd-card p-4 bg-card flex flex-col gap-2" data-accent="neutral">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-base bg-main border-2 border-border">
+            <MapPin className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h2 class="font-heading text-lg font-black">Peta & Kuncian GPS</h2>
+            <p class="text-xs text-muted-foreground">Uji hardware GNSS/GPS dengan visualisasi radius akurasi.</p>
+          </div>
+        </div>
+      </div>
+      <p class="text-xs text-muted-foreground leading-relaxed">
+        Data lokasi diproses 100% lokal di browser HP kamu dan tidak pernah disimpan atau dikirim ke server mana pun.
+      </p>
+    </div>
+
+    <!-- Map Container Card -->
+    <div class="dd-card p-2 bg-card flex flex-col gap-3 relative overflow-hidden" data-accent="neutral">
+      <!-- Leaflet Map Div -->
+      <div id="gps-map" class="w-full h-72 sm:h-96 rounded-base border-2 border-border bg-secondary-background relative z-10">
+        <div id="map-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-secondary-background/90">
+          <Compass className="w-10 h-10 text-muted-foreground animate-pulse mb-2" />
+          <p class="font-heading text-sm font-bold">Peta Belum Aktif</p>
+          <p class="text-xs text-muted-foreground mt-1 max-w-xs">
+            Tekan tombol "Kunci Posisi & Buka Peta" di bawah untuk memuat peta satelit dan mengukur presisi.
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Button & Coordinates Display -->
+      <div class="flex flex-col gap-2.5 p-2">
+        <button id="btn-get-loc" class="dd-btn bg-main py-2.5 px-4 text-xs font-extrabold flex items-center justify-center gap-2 w-full">
+          <Navigation className="w-4 h-4" />
+          <span>🧭 Kunci Posisi & Buka Peta</span>
+        </button>
+
+        <div id="loc-details" class="hidden flex-col gap-2 p-3 bg-secondary-background rounded-base border-2 border-border font-data text-xs">
+          <div class="flex justify-between border-b border-border/30 pb-1.5">
+            <span class="text-muted-foreground">Garis Lintang (Latitude):</span>
+            <span id="loc-lat" class="font-bold">—</span>
+          </div>
+          <div class="flex justify-between border-b border-border/30 pb-1.5">
+            <span class="text-muted-foreground">Garis Bujur (Longitude):</span>
+            <span id="loc-lon" class="font-bold">—</span>
+          </div>
+          <div class="flex justify-between border-b border-border/30 pb-1.5">
+            <span class="text-muted-foreground">Radius Presisi (Akurasi):</span>
+            <span id="loc-acc" class="font-bold text-healthy">—</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted-foreground">Status Kuncian Satelit:</span>
+            <span id="loc-status" class="font-bold">Terkunci</span>
+          </div>
+        </div>
+
+        <p id="loc-err" class="hidden text-xs text-critical font-bold p-2 bg-critical/20 rounded-base border-2 border-border font-data">
+        </p>
+      </div>
+    </div>
+
+    <!-- Tips GNSS/GPS Hardware -->
+    <div class="dd-card p-4 bg-card flex flex-col gap-2" data-accent="neutral">
+      <h3 class="font-heading text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        <AlertCircle className="w-3.5 h-3.5" />
+        Info Pengujian Sensor GPS
+      </h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5 list-disc list-inside leading-relaxed">
+        <li>Akurasi <b>&le; 10 meter</b> menandakan kuncian multi-satelit GNSS (GPS/GLONASS/Galileo) optimal di luar ruangan.</li>
+        <li>Jika akurasi <b>&gt; 25 meter</b>, perangkat kemungkinan mengandalkan estimasi BTS seluler / WiFi triangulasi.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Load Leaflet JS -->
+  <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    import { setEntry } from '@/lib/diagnostics/store';
+
+    let mapInstance: any = null;
+    let markerInstance: any = null;
+    let circleInstance: any = null;
+
+    const btn = document.getElementById('btn-get-loc');
+    const placeholder = document.getElementById('map-placeholder');
+    const details = document.getElementById('loc-details');
+    const errBox = document.getElementById('loc-err');
+    const latEl = document.getElementById('loc-lat');
+    const lonEl = document.getElementById('loc-lon');
+    const accEl = document.getElementById('loc-acc');
+    const statusEl = document.getElementById('loc-status');
+
+    function initLeaflet(lat: number, lon: number, accuracy: number) {
+      if (placeholder) placeholder.style.display = 'none';
+      if (details) details.classList.remove('hidden');
+      if (details) details.classList.add('flex');
+      if (errBox) errBox.classList.add('hidden');
+
+      if (latEl) latEl.textContent = lat.toFixed(6);
+      if (lonEl) lonEl.textContent = lon.toFixed(6);
+      if (accEl) accEl.textContent = `± ${accuracy.toFixed(0)} meter`;
+      if (statusEl) {
+        statusEl.textContent = accuracy <= 15 ? 'Presisi Tinggi (GNSS Fix)' : 'Presisi Sedang / Estimasi Jaringan';
+      }
+
+      setEntry('location', {
+        status: accuracy <= 25 ? 'pass' : 'warn',
+        value: `±${accuracy.toFixed(0)}m (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+        note: `Koordinat GPS terkunci dengan radius akurasi ±${accuracy.toFixed(0)} meter.`,
+      });
+
+      const L = (window as any).L;
+      if (!L) return;
+
+      if (!mapInstance) {
+        mapInstance = L.map('gps-map').setView([lat, lon], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors',
+        }).addTo(mapInstance);
+      } else {
+        mapInstance.setView([lat, lon], 16);
+      }
+
+      if (markerInstance) markerInstance.remove();
+      if (circleInstance) circleInstance.remove();
+
+      // Custom neo-brutalism marker icon
+      const customIcon = L.divIcon({
+        className: 'custom-map-pin',
+        html: '<div style="background:#52B788;border:3px solid #26241F;width:24px;height:24px;border-radius:50%;box-shadow:3px 3px 0 0 #26241F;"></div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+
+      markerInstance = L.marker([lat, lon], { icon: customIcon }).addTo(mapInstance)
+        .bindPopup(`<b>Posisi HP Kamu</b><br>Akurasi: ±${accuracy.toFixed(0)}m`)
+        .openPopup();
+
+      circleInstance = L.circle([lat, lon], {
+        radius: accuracy,
+        color: '#26241F',
+        weight: 2,
+        fillColor: '#F3D57E',
+        fillOpacity: 0.25,
+      }).addTo(mapInstance);
+
+      mapInstance.invalidateSize();
+    }
+
+    btn?.addEventListener('click', () => {
+      if (!('geolocation' in navigator)) {
+        if (errBox) {
+          errBox.textContent = 'Fitur Geolocation tidak didukung di browser ini.';
+          errBox.classList.remove('hidden');
+        }
+        return;
+      }
+
+      btn.setAttribute('disabled', 'true');
+      btn.innerHTML = '<span>📡 Mencari Kuncian Satelit…</span>';
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          btn.removeAttribute('disabled');
+          btn.innerHTML = '<span>🔄 Perbarui Kuncian Posisi</span>';
+          initLeaflet(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        },
+        (err) => {
+          btn.removeAttribute('disabled');
+          btn.innerHTML = '<span>🧭 Kunci Posisi & Buka Peta</span>';
+          if (errBox) {
+            errBox.textContent = err.code === err.PERMISSION_DENIED
+              ? 'Izin lokasi ditolak. Buka izin lokasi di address bar browser.'
+              : `Gagal membaca GPS (${err.message}).`;
+            errBox.classList.remove('hidden');
+          }
+          setEntry('location', {
+            status: err.code === err.PERMISSION_DENIED ? 'denied' : 'fail',
+            note: 'Akses lokasi tidak berhasil didapatkan.',
+          });
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+      );
+    });
+  </script>
+</BaseLayout>

@@ -1,0 +1,284 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { 
+  Sparkles, 
+  MessageSquare, 
+  Download, 
+  FileText, 
+  RotateCcw, 
+  ShieldCheck, 
+  AlertTriangle, 
+  XCircle, 
+  Send,
+  Bot
+} from 'lucide-react';
+---
+
+<BaseLayout title="Ringkasan & AI Diagnosa · Device Doctor" description="Rangkuman status kesehatan perangkat, konsultasi AI Dokter Device, dan ekspor laporan diagnostik.">
+  <div class="flex flex-col gap-4">
+    <!-- Header Card -->
+    <div class="dd-card p-4 bg-card flex flex-col gap-2" data-accent="neutral">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-base bg-main border-2 border-border">
+            <Sparkles className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h2 class="font-heading text-lg font-black">Ringkasan & Analisis AI</h2>
+            <p class="text-xs text-muted-foreground">Evaluasi komprehensif hardware dibantu model AI Grok 4.6.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Tally Grid -->
+    <div class="grid grid-cols-3 gap-2.5">
+      <div class="dd-card p-3 bg-card flex flex-col items-center justify-center text-center gap-1" data-accent="healthy">
+        <ShieldCheck className="w-5 h-5 text-healthy" />
+        <span id="tally-pass" class="font-data text-xl font-black">0</span>
+        <span class="text-[10px] font-bold uppercase text-muted-foreground">Lolos Normal</span>
+      </div>
+      <div class="dd-card p-3 bg-card flex flex-col items-center justify-center text-center gap-1" data-accent="attention">
+        <AlertTriangle className="w-5 h-5 text-attention" />
+        <span id="tally-warn" class="font-data text-xl font-black">0</span>
+        <span class="text-[10px] font-bold uppercase text-muted-foreground">Catatan / Izin</span>
+      </div>
+      <div class="dd-card p-3 bg-card flex flex-col items-center justify-center text-center gap-1" data-accent="critical">
+        <XCircle className="w-5 h-5 text-critical" />
+        <span id="tally-fail" class="font-data text-xl font-black">0</span>
+        <span class="text-[10px] font-bold uppercase text-muted-foreground">Bermasalah</span>
+      </div>
+    </div>
+
+    <!-- AI Analysis Section -->
+    <div class="dd-card p-4 bg-card flex flex-col gap-3 relative overflow-hidden" data-accent="neutral">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-base bg-signature border-2 border-border text-white">
+            <Bot className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 class="font-heading text-sm font-extrabold">Analisis Medis Perangkat (AI)</h3>
+            <p class="text-[11px] text-muted-foreground">Diagnosa cerdas kondisi HP berdasarkan seluruh hasil tes.</p>
+          </div>
+        </div>
+        <button id="btn-analyze-ai" class="dd-btn bg-main px-3.5 py-1.5 text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Minta Analisis AI</span>
+        </button>
+      </div>
+
+      <!-- Streaming / Markdown Output Area -->
+      <div
+        id="ai-analysis-box"
+        class="min-h-[120px] p-3.5 bg-secondary-background rounded-base border-2 border-border font-sans text-xs leading-relaxed text-foreground flex flex-col justify-center"
+      >
+        <div id="ai-placeholder" class="text-center py-6 text-muted-foreground flex flex-col items-center gap-2">
+          <Sparkles className="w-6 h-6 text-muted-foreground/60" />
+          <p>Klik tombol <b>"Minta Analisis AI"</b> untuk mendapatkan ulasan kondisi HP kamu dari Grok 4.6.</p>
+        </div>
+        <div id="ai-content" class="hidden flex flex-col gap-2"></div>
+      </div>
+    </div>
+
+    <!-- Dokter Device Interactive Chat -->
+    <div class="dd-card p-4 bg-card flex flex-col gap-3" data-accent="neutral">
+      <div class="flex items-center gap-2 border-b-2 border-border/40 pb-2.5">
+        <div class="p-1.5 rounded-base bg-main border-2 border-border">
+          <MessageSquare className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <h3 class="font-heading text-sm font-extrabold">Konsultasi Dokter Device (Chat AI)</h3>
+          <p class="text-[11px] text-muted-foreground">Tanyakan apa saja tentang kondisi hardware atau tips perawatan HP kamu.</p>
+        </div>
+      </div>
+
+      <!-- Chat History Stream -->
+      <div id="chat-stream" class="flex flex-col gap-2.5 max-h-80 overflow-y-auto p-2 bg-secondary-background rounded-base border-2 border-border text-xs">
+        <div class="flex gap-2 items-start bg-card p-2.5 rounded-base border-2 border-border shadow-xs">
+          <div class="p-1 rounded bg-main border border-border text-[10px] font-bold">🩺</div>
+          <div class="leading-relaxed">
+            <b>Dokter Device:</b> Halo! Saya siap membantu menjawab pertanyaan seputar hasil tes hardware HP kamu. Mau tanya apa sayang? 😊
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Input Form -->
+      <form id="chat-form" class="flex gap-2">
+        <input
+          id="chat-input"
+          type="text"
+          placeholder="Contoh: Layar sentuh saya normal gak? Atau aman beli second?"
+          class="flex-1 bg-card border-2 border-border px-3 py-2 text-xs rounded-base font-sans focus:outline-none focus:ring-2 focus:ring-primary shadow-inner"
+        />
+        <button type="submit" class="dd-btn bg-main px-4 py-2 text-xs font-bold flex items-center gap-1">
+          <Send className="w-3.5 h-3.5" />
+          <span>Kirim</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Export & Report Tools -->
+    <div class="dd-card p-4 bg-card flex flex-col gap-3" data-accent="neutral">
+      <h3 class="font-heading text-xs font-bold uppercase tracking-wider text-muted-foreground">Ekspor Laporan Diagnostik</h3>
+      <div class="grid grid-cols-2 gap-2.5">
+        <button id="btn-export-json" class="dd-btn bg-secondary-background py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-2">
+          <Download className="w-4 h-4" />
+          <span>Unduh JSON Data</span>
+        </button>
+        <button id="btn-export-md" class="dd-btn bg-secondary-background py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-2">
+          <FileText className="w-4 h-4" />
+          <span>Salin Markdown</span>
+        </button>
+      </div>
+      <button id="btn-reset-all" class="dd-btn bg-critical text-white py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5 mt-1">
+        <RotateCcw className="w-3.5 h-3.5" />
+        <span>Reset & Ulangi Seluruh Pengujian</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    import { getSession, onSession, resetSession } from '@/lib/diagnostics/store';
+    import { requestAnalysis, requestChat, renderMarkdown } from '@/lib/diagnostics/ai';
+
+    function updateTallies() {
+      const s = getSession();
+      let pass = 0;
+      let warn = 0;
+      let fail = 0;
+
+      for (const id of Object.keys(s.entries)) {
+        const entry = s.entries[id];
+        if (!entry) continue;
+        if (entry.status === 'pass') pass++;
+        else if (entry.status === 'warn' || entry.status === 'denied') warn++;
+        else if (entry.status === 'fail') fail++;
+      }
+
+      const pEl = document.getElementById('tally-pass');
+      const wEl = document.getElementById('tally-warn');
+      const fEl = document.getElementById('tally-fail');
+      if (pEl) pEl.textContent = String(pass);
+      if (wEl) wEl.textContent = String(warn);
+      if (fEl) fEl.textContent = String(fail);
+    }
+
+    // AI Analysis Trigger
+    const btnAnalyze = document.getElementById('btn-analyze-ai');
+    const aiPlaceholder = document.getElementById('ai-placeholder');
+    const aiContent = document.getElementById('ai-content');
+
+    btnAnalyze?.addEventListener('click', async () => {
+      if (aiPlaceholder) aiPlaceholder.style.display = 'none';
+      if (aiContent) {
+        aiContent.classList.remove('hidden');
+        aiContent.innerHTML = '<p class="font-data text-xs text-muted-foreground animate-pulse">⏳ Grok 4.6 sedang menganalisis data hardware & kondisi HP kamu…</p>';
+      }
+
+      btnAnalyze.setAttribute('disabled', 'true');
+
+      let fullText = '';
+      await requestAnalysis({
+        onChunk: (chunk: string) => {
+          fullText += chunk;
+          if (aiContent) {
+            aiContent.innerHTML = renderMarkdown(fullText);
+          }
+        },
+        onDone: () => {
+          btnAnalyze.removeAttribute('disabled');
+        },
+        onError: (err: string) => {
+          btnAnalyze.removeAttribute('disabled');
+          if (aiContent) {
+            aiContent.innerHTML = `<p class="text-critical font-bold">${err}</p>`;
+          }
+        }
+      });
+    });
+
+    // Chat Assistant Trigger
+    const chatForm = document.getElementById('chat-form') as HTMLFormElement | null;
+    const chatInput = document.getElementById('chat-input') as HTMLInputElement | null;
+    const chatStream = document.getElementById('chat-stream');
+    const chatHistory: { role: 'user' | 'assistant'; content: string }[] = [];
+
+    chatForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = chatInput?.value?.trim();
+      if (!q) return;
+
+      if (chatInput) chatInput.value = '';
+
+      // Append user msg
+      const userBubble = document.createElement('div');
+      userBubble.className = 'flex gap-2 items-start bg-main p-2.5 rounded-base border-2 border-border shadow-xs self-end max-w-[85%]';
+      userBubble.innerHTML = `<div class="leading-relaxed"><b>Kamu:</b> ${q}</div>`;
+      chatStream?.append(userBubble);
+      chatHistory.push({ role: 'user', content: q });
+
+      // Assistant placeholder bubble
+      const aiBubble = document.createElement('div');
+      aiBubble.className = 'flex gap-2 items-start bg-card p-2.5 rounded-base border-2 border-border shadow-xs max-w-[90%]';
+      aiBubble.innerHTML = `
+        <div class="p-1 rounded bg-main border border-border text-[10px] font-bold">🩺</div>
+        <div class="ai-text leading-relaxed"><span class="animate-pulse">Mengetik jawaban…</span></div>
+      `;
+      chatStream?.append(aiBubble);
+      chatStream?.scrollTo({ top: chatStream.scrollHeight, behavior: 'smooth' });
+
+      const textContainer = aiBubble.querySelector('.ai-text');
+      let replyText = '';
+
+      await requestChat(q, chatHistory, {
+        onChunk: (chunk: string) => {
+          replyText += chunk;
+          if (textContainer) {
+            textContainer.innerHTML = renderMarkdown(replyText);
+          }
+          chatStream?.scrollTo({ top: chatStream.scrollHeight });
+        },
+        onDone: () => {
+          chatHistory.push({ role: 'assistant', content: replyText });
+        },
+        onError: (err: string) => {
+          if (textContainer) {
+            textContainer.innerHTML = `<span class="text-critical font-bold">Gagal: ${err}</span>`;
+          }
+        }
+      });
+    });
+
+    // Export Tools
+    document.getElementById('btn-export-json')?.addEventListener('click', () => {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(getSession(), null, 2));
+      const dl = document.createElement('a');
+      dl.setAttribute('href', dataStr);
+      dl.setAttribute('download', `device-doctor-report-${Date.now()}.json`);
+      dl.click();
+    });
+
+    document.getElementById('btn-export-md')?.addEventListener('click', () => {
+      const s = getSession();
+      let md = `# Laporan Diagnostik Device Doctor\nTanggal: ${new Date().toLocaleString()}\n\n`;
+      md += `| Uji / Komponen | Status | Nilai | Catatan |\n|---|---|---|---|\n`;
+      for (const [k, v] of Object.entries(s.entries)) {
+        md += `| ${k} | ${v.status} | ${v.value ?? '-'} | ${v.note ?? '-'} |\n`;
+      }
+      navigator.clipboard.writeText(md).then(() => {
+        alert('Laporan format Markdown berhasil disalin ke clipboard!');
+      });
+    });
+
+    document.getElementById('btn-reset-all')?.addEventListener('click', () => {
+      if (confirm('Reset semua hasil tes dan mulai ulang dari awal?')) {
+        resetSession();
+        window.location.reload();
+      }
+    });
+
+    onSession(() => updateTallies());
+    updateTallies();
+  </script>
+</BaseLayout>

@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import BottomNav from '@/components/BottomNav.tsx';
 
 interface Props {
   title?: string;
@@ -7,34 +8,60 @@ interface Props {
 }
 
 const {
-  title = 'Device Doctor — Cek Kesehatan HP dari Browser',
-  description =
-    'Cek kondisi baterai, layar, speaker, mikrofon, kamera, sensor, dan performa HP kamu langsung dari browser. Jujur soal keterbatasan: hasilnya indikasi, bukan diagnosis pasti.',
+  title = 'Device Doctor · Mobile Hardware & Specs Inspector',
+  description = 'Periksa kondisi HP & diagnosa hardware langsung dari browser secara akurat, interaktif, dan jujur.',
 } = Astro.props;
+
+const currentPath = Astro.url.pathname;
 ---
 
 <!doctype html>
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="generator" content={Astro.generator} />
-    <meta name="description" content={description} />
-    <meta name="theme-color" content="#EDF2ED" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <script is:inline src="/registerSW.js" defer></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#EDF2ED" />
+    <meta name="description" content={description} />
     <title>{title}</title>
+    <!-- Leaflet CSS for Maps page -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   </head>
-  <body>
-    <slot />
-    <script>
-      import '../scripts/main';
-    </script>
+  <body class="min-h-screen bg-background text-foreground antialiased flex flex-col font-sans pb-24 select-none">
+    <!-- Header App Bar -->
+    <header class="sticky top-0 z-30 bg-card border-b-[3px] border-border px-4 py-3 shadow-[0_3px_0_0_var(--border)]">
+      <div class="max-w-2xl mx-auto flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-base bg-main border-2 border-border flex items-center justify-center font-black text-base shadow-[2px_2px_0_0_var(--border)]">
+            🩺
+          </div>
+          <div>
+            <h1 class="font-heading text-lg font-black leading-none">Device Doctor</h1>
+            <p class="text-[10px] font-data text-muted-foreground mt-0.5">Hardware & Web Diagnostic</p>
+          </div>
+        </a>
+        <div class="flex items-center gap-2">
+          <span id="net-status" class="dd-btn bg-healthy font-data text-[10px] px-2 py-0.5 font-bold">
+            ● Online
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-2xl w-full mx-auto p-4 flex flex-col gap-4">
+      <slot />
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <BottomNav client:load currentPath={currentPath} />
+
+    <!-- Fullscreen Overlay Container for Interactive Tests -->
+    <div id="test-overlay" class="test-overlay" data-active="false"></div>
+
+    <script src="/registerSW.js" defer></script>
   </body>
 </html>
