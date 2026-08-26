@@ -18,27 +18,60 @@ function fmtBytes(n: number): string {
   return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
 }
 
-/** Detail IP & ISP dari Cloudflare Edge API */
+/** Detail IP & ISP dari Cloudflare Edge API dengan multi-source */
 export async function collectIpDetails(): Promise<Row[]> {
   const rows: Row[] = [];
   try {
-    const res = await fetch('/api/ip');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    rows.push(['Alamat IP Publik', data.ip || '—']);
-    rows.push(['ISP / Operator', data.isp || data.asOrganization || '—']);
-    rows.push(['Autonomous System', data.asn || '—']);
-    rows.push(['Kota / Wilayah', `${data.city || '—'}, ${data.region || '—'}`]);
-    rows.push(['Negara / Datacenter', `${data.country || '—'} (Colo: ${data.colo || '—'})`]);
-    rows.push(['Protokol Jaringan', `${data.httpProtocol || 'HTTP/2'} (${data.tlsVersion || 'TLS 1.3'})`]);
-    
-    setEntry('ip_network', {
-      status: 'info',
-      value: `${data.ip} · ${data.isp}`,
-      note: `ISP: ${data.isp} (${data.asn}), Lokasi Edge: ${data.city}, ${data.country}`,
-    });
+    let data: any = null;
+    try {
+      const res = await fetch('/api/ip');
+      if (res.ok) data = await res.json();
+    } catch {
+      /* fallback client side */
+    }
+
+    if (!data || !data.ip || data.ip === '127.0.0.1') {
+      try {
+        const directRes = await fetch('https://ipwho.is/');
+        if (directRes.ok) {
+          const directData = await directRes.json();
+          data = {
+            ip: directData.ip,
+            asn: directData.connection?.asn ? `AS${directData.connection.asn}` : '—',
+            isp: directData.connection?.isp || directData.connection?.org || '—',
+            asOrganization: directData.connection?.org || '—',
+            city: directData.city || '—',
+            region: directData.region || '—',
+            country: directData.country_code || 'ID',
+            colo: 'Edge',
+            httpProtocol: 'HTTP/2',
+            tlsVersion: 'TLS 1.3',
+          };
+        }
+      } catch {
+        /* fallback */
+      }
+    }
+
+    if (data) {
+      rows.push(['Alamat IP Publik', data.ip || '—']);
+      rows.push(['ISP / Operator', data.isp || data.asOrganization || '—']);
+      rows.push(['Autonomous System', data.asn || '—']);
+      rows.push(['Organisasi Jaringan', data.asOrganization || data.isp || '—']);
+      rows.push(['Kota / Wilayah', `${data.city || '—'}, ${data.region || '—'}`]);
+      rows.push(['Negara / Datacenter', `${data.country || '—'} (Colo: ${data.colo || '—'})`]);
+      rows.push(['Protokol Jaringan', `${data.httpProtocol || 'HTTP/2'} (${data.tlsVersion || 'TLS 1.3'})`]);
+      
+      setEntry('ip_network', {
+        status: 'info',
+        value: `${data.ip} · ${data.isp}`,
+        note: `ISP: ${data.isp} (${data.asn}), Organisasi: ${data.asOrganization}, Lokasi Edge: ${data.city}, ${data.country}`,
+      });
+    } else {
+      rows.push(['Status IP/ISP', 'Gagal memuat detail jaringan IP']);
+    }
   } catch (err) {
-    rows.push(['Status IP/ISP', 'Gagal memuat detail jaringan edge']);
+    rows.push(['Status IP/ISP', 'Gagal memuat detail jaringan IP']);
   }
   return rows;
 }
@@ -92,7 +125,7 @@ function estimateInches(_hz: number): string {
   const dpr = window.devicePixelRatio || 1;
   const wPx = screen.width * dpr;
   const hPx = screen.height * dpr;
-  const ppi = 400; // Standar ponsel modern (~395-405 ppi pada POCO/Redmi/Samsung)
+  const ppi = 400;
   const diag = Math.sqrt(wPx ** 2 + hPx ** 2) / ppi;
   return `~${diag.toFixed(1)} Inci (estimasi ppi ${ppi})`;
 }

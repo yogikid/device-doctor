@@ -3,8 +3,8 @@
  *
  * Tiga tugas:
  *  1. Serve static assets hasil `astro build` (binding ASSETS).
- *  2. Endpoint /api/ip: Membaca detail IP, ISP/ASN, Organisasi, Lokasi Geo dari Cloudflare Edge (request.cf) + Client IP.
- *  3. Proxy ke gateway AI (9Router) untuk /api/ai/* — API key TETAP di server, tidak pernah dikirim ke browser.
+ *  2. Endpoint /api/ip: Multi-source IP & Network lookup (Cloudflare Edge request.cf + ipapi.co / ipwho.is fallback).
+ *  3. Proxy ke gateway AI (9Router) untuk /api/ai/* — API key TETAP di server.
  */
 
 interface Env {
@@ -40,6 +40,7 @@ PENTING:
 - Kamu SUDAH DIBEKALI data RAG spesifikasi & diagnosa perangkat user yang nyata pada context.
 - BACA LANGSUNG dari data tersebut saat user bertanya tentang:
   * Alamat IP Publik, ISP Operator, ASN, Kota & Lokasi Jaringan
+  * Hardware Vendor, Hardware Model (Galaxy A14 / POCO / dll), OS Version
   * Chipset GPU, Vendor Hardware, WebGL2, WebGPU
   * Layar (Resolusi Aktual, Refresh Rate Hz live, Gamut P3, HDR, DPR)
   * CPU Cores, RAM Kapasitas, Battery Level & Charging Status
@@ -107,7 +108,7 @@ async function callAI(env: Env, messages: unknown[], maxTokens: number): Promise
               const delta = json?.choices?.[0]?.delta?.content;
               if (typeof delta === 'string' && delta) controller.enqueue(encoder.encode(delta));
             } catch {
-              /* chunk belum lengkap — abaikan */
+              /* chunk belum lengkap */
             }
           }
         }
@@ -132,29 +133,54 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // 1. Endpoint /api/ip untuk detail koneksi IP, ISP, ASN, Lokasi dari Edge Cloudflare
+    // 1. Endpoint /api/ip: Detail IP publik, ASN, ISP, Organisasi, dan Lokasi Edge
     if (url.pathname === '/api/ip') {
       if (request.method === 'OPTIONS') {
         return new Response(null, { status: 204, headers: cors() });
       }
+
       const cf = (request as any).cf || {};
       const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || '127.0.0.1';
       
+      let asn = cf.asn ? `AS${cf.asn}` : '—';
+      let org = cf.asOrganization || '—';
+      let isp = cf.asOrganization || '—';
+      let city = cf.city || '—';
+      let region = cf.region || '—';
+      let country = cf.country || '—';
+
+      // Fallback jika Cloudflare Edge tidak memberikan data ISP/ASN lengkap
+      if (isp === '—' || asn === '—') {
+        try {
+          const extRes = await fetch(`https://ipwho.is/${clientIp}`, { signal: AbortSignal.timeout(2500) });
+          if (extRes.ok) {
+            const extData: any = await extRes.json();
+            if (extData.success) {
+              if (asn === '—' && extData.connection?.asn) asn = `AS${extData.connection.asn}`;
+              if (org === '—' && extData.connection?.org) org = extData.connection.org;
+              if (isp === '—' && extData.connection?.isp) isp = extData.connection.isp;
+              if (city === '—' && extData.city) city = extData.city;
+              if (region === '—' && extData.region) region = extData.region;
+              if (country === '—' && extData.country_code) country = extData.country_code;
+            }
+          }
+        } catch {
+          /* fallback diam */
+        }
+      }
+
       const ipData = {
         ip: clientIp,
-        asn: cf.asn ? `AS${cf.asn}` : '—',
-        asOrganization: cf.asOrganization || '—',
-        isp: cf.asOrganization || '—',
-        city: cf.city || '—',
-        region: cf.region || '—',
-        country: cf.country || '—',
-        postalCode: cf.postalCode || '—',
-        metroCode: cf.metroCode || '—',
+        asn,
+        asOrganization: org,
+        isp,
+        city,
+        region,
+        country,
         colo: cf.colo || '—',
-        timezone: cf.timezone || '—',
+        timezone: cf.timezone || 'Asia/Jakarta',
         httpProtocol: cf.httpProtocol || 'HTTP/2',
         tlsVersion: cf.tlsVersion || 'TLS 1.3',
-        tlsCipher: cf.tlsCipher || '—',
       };
 
       return new Response(JSON.stringify(ipData), {

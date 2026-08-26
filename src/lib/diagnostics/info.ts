@@ -155,17 +155,16 @@ function updateOnlineBadge() {
 window.addEventListener('online', updateOnlineBadge);
 window.addEventListener('offline', updateOnlineBadge);
 
-/* ---------- 4. Perangkat & CPU (High Entropy Client Hints) ---------- */
+/* ---------- 4. Perangkat & CPU (High Entropy Client Hints & StatCounter Pro Specs) ---------- */
 async function initDevice() {
   const nav = navigator as any;
   activate('device', 'neutral');
 
-  let modelName = '—';
+  let rawModel = '—';
   let platformVer = '—';
-  let arch = '—';
-  let bitness = '—';
+  let platformName = nav.userAgentData?.platform || nav.platform || 'Android';
 
-  // Coba ambil High Entropy Client Hints (NavigatorUAData API)
+  // 1. Ambil High Entropy Values (API modern Chrome)
   if (nav.userAgentData?.getHighEntropyValues) {
     try {
       const highEntropy = await nav.userAgentData.getHighEntropyValues([
@@ -173,63 +172,120 @@ async function initDevice() {
         'platformVersion',
         'architecture',
         'bitness',
-        'fullVersionList',
       ]);
-      if (highEntropy.model) modelName = highEntropy.model;
+      if (highEntropy.model) rawModel = highEntropy.model;
       if (highEntropy.platformVersion) platformVer = highEntropy.platformVersion;
-      if (highEntropy.architecture) arch = highEntropy.architecture;
-      if (highEntropy.bitness) bitness = `${highEntropy.bitness}-bit`;
+      if (highEntropy.platform) platformName = highEntropy.platform;
     } catch {
       /* fallback */
     }
   }
 
-  // Fallback regex jika model belum ketemu (misal Samsung SM-A145F / POCO M3 dll dari UA)
-  if (modelName === '—' || !modelName) {
-    const ua = navigator.userAgent;
+  // 2. Fallback regex dari User-Agent jika model belum terisi
+  const ua = navigator.userAgent;
+  if (rawModel === '—' || !rawModel) {
     const match = ua.match(/\b(SM-[A-Z0-9]+|M2[0-9]{3}[A-Z0-9]+|POCO [A-Z0-9 ]+|Redmi [A-Z0-9 ]+|Pixel [A-Z0-9 ]+|iPhone|iPad)\b/i);
-    if (match) modelName = match[1];
+    if (match) rawModel = match[1];
   }
 
+  const { vendor, modelName } = parseDeviceInfo(rawModel, ua);
+
+  // 3. Tentukan kategori device (Mobile, Desktop, Tablet, Crawler, Console)
+  const isMobile = nav.userAgentData?.mobile ?? (/Android|iPhone|iPad|Mobile/i.test(ua) || navigator.maxTouchPoints > 1);
+  const isTablet = /iPad|Tablet|Nexus 7|Nexus 10|SM-T/i.test(ua);
+  const isDesktop = !isMobile && !isTablet;
+  const isBot = /bot|googlebot|crawler|spider|robot|crawling/i.test(ua);
+
+  // 4. Hitung resolusi layar fisik aktual
+  const dpr = window.devicePixelRatio || 1;
+  const screenW = Math.round(screen.width * dpr);
+  const screenH = Math.round(screen.height * dpr);
+
+  // 5. Versi browser & OS
   const uaBrands = nav.userAgentData?.brands?.map((b: any) => b.brand).filter((b: string) => !/Not.A.Brand/i.test(b)) ?? [];
-  const osPlatform = nav.userAgentData?.platform || nav.platform || 'Android / Linux';
+  const browserName = uaBrands.length > 0 ? uaBrands.join(', ') : (/Chrome/i.test(ua) ? 'Chrome for Android' : 'Mobile Browser');
+  const osFull = `${platformName} ${platformVer !== '—' ? platformVer : (ua.match(/Android (\d+(\.\d+)?)/)?.[1] ?? '')}`.trim();
 
   renderRows('card-device', [
-    { label: 'Model Hardware HP', value: modelName !== '—' ? `${modelName} (${resolveCommercialName(modelName)})` : 'Deteksi Model Umum', mono: true },
-    { label: 'Sistem Operasi (OS)', value: `${osPlatform} ${platformVer !== '—' ? `v${platformVer}` : ''} ${bitness !== '—' ? `(${bitness})` : ''}`, mono: false },
-    { label: 'Arsitektur CPU', value: arch !== '—' ? `${arch} (${nav.hardwareConcurrency ?? '?'} Threads)` : `${nav.hardwareConcurrency ?? '?'} CPU Cores`, mono: true },
-    { label: 'RAM Perangkat (Est)', value: nav.deviceMemory != null ? `≥ ${nav.deviceMemory} GB RAM` : 'Tidak di-expose', mono: true },
-    { label: 'Browser Client', value: uaBrands.length > 0 ? uaBrands.join(', ') : 'Chrome Mobile', mono: false },
-    { label: 'Kapasitas Touch', value: `${navigator.maxTouchPoints ?? 0} Titik Multi-Touch`, mono: true },
+    { label: 'Hardware Vendor', value: vendor, mono: false },
+    { label: 'Hardware Model', value: `${modelName} ${rawModel !== '—' && rawModel !== modelName ? `(${rawModel})` : ''}`.trim(), mono: true },
+    { label: 'Sistem Operasi (OS)', value: osFull || 'Android', mono: false },
+    { label: 'Browser Name', value: browserName, mono: false },
+    { label: 'Screen Resolution', value: `${screenW} × ${screenH} px (Physical)`, mono: true },
+    { label: 'Is it a mobile device', value: isMobile ? 'Yes' : 'No', mono: true },
+    { label: 'Is it a desktop device', value: isDesktop ? 'Yes' : 'No', mono: true },
+    { label: 'Is it a tablet', value: isTablet ? 'Yes' : 'No', mono: true },
+    { label: 'Is it a crawler/robot', value: isBot ? 'Yes (Bot Detected)' : 'No', mono: true },
+    { label: 'CPU Cores / Threads', value: `${nav.hardwareConcurrency ?? '?'} Cores`, mono: true },
+    { label: 'Device RAM (Est)', value: nav.deviceMemory ? `≥ ${nav.deviceMemory} GB RAM` : 'Tidak di-expose', mono: true },
   ]);
 
-  setEntry('device_model', { status: 'info', value: modelName !== '—' ? `${modelName} (${resolveCommercialName(modelName)})` : 'Mobile Device' });
-  setEntry('device_os', { status: 'info', value: `${osPlatform} ${platformVer !== '—' ? platformVer : ''}` });
+  setEntry('device_model', { status: 'info', value: `${vendor} ${modelName} (${rawModel})` });
+  setEntry('device_os', { status: 'info', value: osFull });
+  setEntry('device_type', { status: 'info', value: isMobile ? 'Mobile Smartphone' : isTablet ? 'Tablet' : 'Desktop' });
   setEntry('device', {
     status: 'info',
-    value: `${modelName !== '—' ? modelName : osPlatform} · ${nav.hardwareConcurrency ?? '?'} core · ${nav.deviceMemory ?? '?'}GB RAM`,
-    note: `Model: ${modelName}, OS: ${osPlatform} ${platformVer}`,
+    value: `${vendor} ${modelName} · ${osFull} · ${screenW}x${screenH}`,
+    note: `Model: ${rawModel}, Vendor: ${vendor}, Browser: ${browserName}`,
   });
 
   const uaEl = $('[data-ua]');
   if (uaEl) uaEl.textContent = navigator.userAgent;
 }
 
-/** Kamus resolusi model komersial smartphone populer di Indonesia */
-function resolveCommercialName(model: string): string {
+/** Parser cerdas vendor & nama model komersial smartphone */
+function parseDeviceInfo(model: string, ua: string): { vendor: string; modelName: string } {
   const m = model.toUpperCase();
-  if (m.includes('SM-A145F') || m.includes('SM-A145')) return 'Samsung Galaxy A14 4G';
-  if (m.includes('SM-A146')) return 'Samsung Galaxy A14 5G';
-  if (m.includes('SM-A546')) return 'Samsung Galaxy A54 5G';
-  if (m.includes('SM-A556')) return 'Samsung Galaxy A55 5G';
-  if (m.includes('SM-S918')) return 'Samsung Galaxy S23 Ultra';
-  if (m.includes('SM-S928')) return 'Samsung Galaxy S24 Ultra';
-  if (m.includes('M2007J20CG') || m.includes('M2007J20CT')) return 'POCO X3 NFC';
-  if (m.includes('M2102J20SG') || m.includes('M2102J20SI')) return 'POCO X3 Pro';
-  if (m.includes('22011211G')) return 'POCO F4 GT';
-  if (m.includes('23049PCD8G')) return 'POCO F5';
-  if (m.includes('24069PC21G')) return 'POCO F6';
-  return 'Smartphone Device';
+  const u = ua.toUpperCase();
+
+  // SAMSUNG
+  if (m.includes('SM-') || u.includes('SAMSUNG') || m.includes('SAMSUNG')) {
+    if (m.includes('A145F') || m.includes('A145')) return { vendor: 'Samsung', modelName: 'Galaxy A14 4G' };
+    if (m.includes('A146')) return { vendor: 'Samsung', modelName: 'Galaxy A14 5G' };
+    if (m.includes('A546')) return { vendor: 'Samsung', modelName: 'Galaxy A54 5G' };
+    if (m.includes('A556')) return { vendor: 'Samsung', modelName: 'Galaxy A55 5G' };
+    if (m.includes('S918')) return { vendor: 'Samsung', modelName: 'Galaxy S23 Ultra' };
+    if (m.includes('S928')) return { vendor: 'Samsung', modelName: 'Galaxy S24 Ultra' };
+    if (m.includes('SM-')) return { vendor: 'Samsung', modelName: `Galaxy (${model})` };
+    return { vendor: 'Samsung', modelName: 'Galaxy Device' };
+  }
+
+  // XIAOMI / POCO / REDMI
+  if (m.includes('POCO') || u.includes('POCO') || m.includes('M2102J20SG') || m.includes('M2007J20CG')) {
+    if (m.includes('M2102J20SG') || m.includes('M2102J20SI') || u.includes('POCO X3 PRO')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO X3 Pro' };
+    if (m.includes('M2007J20CG') || u.includes('POCO X3')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO X3 NFC' };
+    if (m.includes('22011211G') || u.includes('POCO F4')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO F4 GT' };
+    if (m.includes('23049PCD8G') || u.includes('POCO F5')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO F5' };
+    if (m.includes('24069PC21G') || u.includes('POCO F6')) return { vendor: 'Xiaomi / POCO', modelName: 'POCO F6' };
+    return { vendor: 'Xiaomi / POCO', modelName: model !== '—' ? model : 'POCO Smartphone' };
+  }
+
+  if (m.includes('REDMI') || u.includes('REDMI')) {
+    return { vendor: 'Xiaomi / Redmi', modelName: model !== '—' ? model : 'Redmi Device' };
+  }
+
+  // APPLE
+  if (/iPhone/i.test(ua) || m.includes('IPHONE')) {
+    return { vendor: 'Apple', modelName: 'iPhone' };
+  }
+  if (/iPad/i.test(ua) || m.includes('IPAD')) {
+    return { vendor: 'Apple', modelName: 'iPad' };
+  }
+
+  // GOOGLE PIXEL
+  if (m.includes('PIXEL') || u.includes('PIXEL')) {
+    return { vendor: 'Google', modelName: model !== '—' ? model : 'Pixel Device' };
+  }
+
+  // OPPO / REALME / VIVO
+  if (/OPPO/i.test(ua) || m.includes('CPH')) return { vendor: 'OPPO', modelName: model !== '—' ? model : 'OPPO Smartphone' };
+  if (/REALME/i.test(ua) || m.includes('RMX')) return { vendor: 'Realme', modelName: model !== '—' ? model : 'Realme Smartphone' };
+  if (/VIVO/i.test(ua) || m.includes('V2')) return { vendor: 'Vivo', modelName: model !== '—' ? model : 'Vivo Smartphone' };
+
+  return {
+    vendor: model !== '—' ? 'Android Device' : 'Generic Hardware',
+    modelName: model !== '—' ? model : 'Mobile Smartphone',
+  };
 }
 
 /* ---------- 5. Layar & Resolusi ---------- */
