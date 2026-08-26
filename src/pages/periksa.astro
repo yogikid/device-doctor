@@ -122,10 +122,10 @@ const testList = [
       speaker: () => void startSpeakerTest(),
       mic: () => void startMicTest(),
       camera: () => void startCameraTest(),
-      vibrate: startVibrateTest,
-      motion: () => void startMotionTest(),
-      benchmark: startBenchmark,
-      gps: startGpsTest,
+      vibrate: () => startVibrateTest(),
+      motion: () => startMotionTest(),
+      benchmark: () => startBenchmark(),
+      gps: () => startGpsTest(),
     };
 
     const CHIP_STYLE: Record<string, string> = {
@@ -185,6 +185,7 @@ const testList = [
       refreshUi();
     });
 
+    // Event delegation on document level so buttons always work even after SPA navigation
     document.addEventListener('click', (e) => {
       const target = e.target instanceof Element ? e.target : null;
       if (!target) return;
@@ -192,7 +193,9 @@ const testList = [
       const btn = target.closest<HTMLElement>('[data-test]');
       if (btn) {
         const id = btn.dataset.test!;
-        STARTERS[id]?.();
+        if (STARTERS[id]) {
+          STARTERS[id]();
+        }
         return;
       }
 

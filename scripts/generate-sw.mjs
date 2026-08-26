@@ -1,14 +1,13 @@
 // Post-build: generate service worker (dist/sw.js) via workbox-build.
-// Catatan: hook internal vite-plugin-pwa buat membangun SW tidak tereksekusi
-// di pipeline Astro 7, jadi kita panggil workbox langsung — hasilnya identik
-// dengan strategi generateSW bawaan plugin.
+// Catatan: Karena ini multi-page SSG (/periksa/index.html, /lokasi/index.html, /ringkasan/index.html),
+// navigateFallback JANGAN diarahkan ke index.html root karena akan membajak seluruh rute sub-halaman!
 import { generateSW } from 'workbox-build';
 
 const result = await generateSW({
   globDirectory: 'dist',
   globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webmanifest}'],
   swDest: 'dist/sw.js',
-  navigateFallback: 'index.html',
+  navigateFallback: null,
   skipWaiting: true,
   clientsClaim: true,
   cleanupOutdatedCaches: true,

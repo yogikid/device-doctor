@@ -3,7 +3,7 @@
  * Didesain responsif, mobile-first, edge-to-edge, dan akurat.
  */
 import { $ } from '../dom';
-import { setEntry, getSession } from './store';
+import { setEntry } from './store';
 import type { Status } from './types';
 
 const overlayEl = () => $('#test-overlay') as HTMLElement | null;
@@ -14,7 +14,6 @@ function openOverlay(title: string, opts: { clean?: boolean } = {}): { body: HTM
   if (!ov) throw new Error('overlay container missing');
   
   if (opts.clean) {
-    // Mode clean untuk Dead Pixel / Touch Screen (tanpa header tebal yang menutupi)
     ov.innerHTML = `<div data-body class="relative w-full h-full"></div>`;
   } else {
     ov.innerHTML = `
@@ -97,7 +96,7 @@ function infoLine(box: HTMLElement, html: string) {
 /* ------------------------------------------------------------------ */
 
 export function startTouchTest() {
-  const { body, close } = openOverlay('Test Layar Sentuh', { clean: true });
+  const { body } = openOverlay('Test Layar Sentuh', { clean: true });
   
   const cols = 6;
   const rows = 10;
@@ -245,7 +244,6 @@ export function startDisplayTest() {
 
   stage.querySelector('#dp-done')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    // Tampilkan dialog konfirmasi akhir
     const { body: vBody } = openOverlay('Hasil Test Dead Pixel');
     infoLine(vBody, 'Apakah kamu melihat titik hitam, titik warna macet, garis vertikal, atau noda (burn-in) selama pergantian 8 warna?');
     verdictButtons(vBody, {
@@ -395,7 +393,7 @@ export async function startMicTest() {
         stream.getTracks().forEach((t) => t.stop());
         void ctx.close();
       };
-    } catch (err) {
+    } catch {
       finish('mic', 'denied', 'Izin akses mikrofon ditolak atau device mic sibuk.');
     }
   });
@@ -460,38 +458,38 @@ export function startCameraTest() {
 /* 6. Getar (Direct User-Gesture Vibration Engine)                    */
 /* ------------------------------------------------------------------ */
 
-export function initVibrateCard() {
-  const btn = $('#btn-vibrate') as HTMLButtonElement | null;
-  const msg = $('[data-vibrate-msg]');
-  if (typeof navigator.vibrate !== 'function') {
-    if (btn) btn.disabled = true;
-    if (msg instanceof HTMLElement) {
-      msg.hidden = false;
-      msg.textContent = 'API Vibrate tidak didukung di browser ini (hanya Chromium Android).';
-    }
-    setEntry('vibrate', { status: 'unsupported', note: 'navigator.vibrate tidak tersedia di browser.' });
-  }
-}
-
 export function startVibrateTest() {
-  if (typeof navigator.vibrate !== 'function') {
-    finish('vibrate', 'unsupported', 'Browser tidak mendukung Vibration API.');
-    return;
+  const hasVibrate = typeof navigator.vibrate === 'function';
+
+  const triggerVibe = () => {
+    try {
+      if (hasVibrate) {
+        // Pola getar intens: 500ms on, 200ms off, 500ms on, 200ms off, 800ms on
+        navigator.vibrate([500, 200, 500, 200, 800]);
+      }
+    } catch (e) {
+      console.warn('Vibrate call error:', e);
+    }
+  };
+
+  // Langsung picu getaran pertama kali saat user klik tombol
+  triggerVibe();
+
+  const { body } = openOverlay('Test Motor Getaran HP (Haptic)');
+  
+  if (!hasVibrate) {
+    infoLine(body, '<b class="text-attention">Perhatian:</b> Browser kamu tidak mengizinkan akses <code>navigator.vibrate</code>. Ini umumnya terjadi di browser non-Chromium (seperti Safari iOS) atau jika izin haptic diblokir sistem.');
+  } else {
+    infoLine(body, 'Pola getaran getar-jeda-getar telah dikirimkan ke motor haptic HP kamu. Tekan tombol di bawah jika ingin mengulang getaran.');
   }
-
-  // Pola getar: 400ms on, 200ms off, 400ms on, 200ms off, 800ms on
-  const pattern = [400, 200, 400, 200, 800];
-  navigator.vibrate(pattern);
-
-  const { body } = openOverlay('Test Motor Getaran HP');
-  infoLine(body, 'Pola getaran sedang dikirimkan ke motor haptic HP kamu. Apakah kamu merasakan getarannya?');
 
   const again = document.createElement('button');
   again.type = 'button';
-  again.textContent = '📳 Getarkan Sekali Lagi';
-  again.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm';
-  again.addEventListener('click', () => {
-    navigator.vibrate(pattern);
+  again.textContent = '📳 Getarkan HP Sekarang';
+  again.className = 'dd-btn bg-main px-6 py-3 font-heading font-extrabold text-sm shadow-md';
+  again.addEventListener('click', (e) => {
+    e.stopPropagation();
+    triggerVibe();
   });
   body.append(again);
 
@@ -499,7 +497,7 @@ export function startVibrateTest() {
     pass: 'Getaran Terasa Jelas',
     fail: 'Sama Sekali Tidak Ada Getar',
     onPass: () => finish('vibrate', 'pass', 'Motor getar / linear haptic motor merespons pola sinyal.', 'Haptic OK'),
-    onFail: () => finish('vibrate', 'fail', 'Getaran tidak terasa. Periksa mode silent atau kondisi motor haptic fisik.', 'tidak ada respon'),
+    onFail: () => finish('vibrate', 'fail', 'Getaran tidak terasa. Pastikan getaran/haptics tidak dimatikan di Pengaturan Suara HP Android (Vibration & Haptics).', 'tidak ada respon'),
   });
 }
 
@@ -524,7 +522,6 @@ export function startMotionTest() {
   body.append(pad, readout);
 
   const dot = pad.querySelector('#gyro-dot') as HTMLElement;
-  let updates = 0;
 
   const onOri = (e: DeviceOrientationEvent) => {
     const beta = Math.max(-45, Math.min(45, e.beta ?? 0));
@@ -533,7 +530,6 @@ export function startMotionTest() {
       dot.style.transform = `translate(${gamma * 2}px, ${beta * 2}px)`;
     }
     readout.textContent = `Kemiringan: X=${gamma.toFixed(1)}°, Y=${beta.toFixed(1)}°`;
-    updates++;
   };
 
   window.addEventListener('deviceorientation', onOri);
@@ -586,7 +582,6 @@ export function startBenchmark() {
       if (bar) bar.style.width = `${pct}%`;
       if (txt) txt.textContent = `${pct}%`;
 
-      // Matrix computation simulation
       for (let i = 0; i < 250000; i++) {
         Math.sqrt(i) * Math.sin(i);
         ops++;
