@@ -2,7 +2,6 @@
 import '../styles/global.css';
 import BottomNav from '@/components/BottomNav.tsx';
 import { ClientRouter } from 'astro:transitions';
-import { Stethoscope } from 'lucide-react';
 
 interface Props {
   title?: string;
@@ -13,14 +12,14 @@ interface Props {
 
 const {
   title = 'Device Doctor · Mobile Hardware Diagnostics & Web Specs Lab',
-  description = 'Platform inspeksi mendalam hardware smartphone, deteksi IP/ISP, uji layar sentuh edge-to-edge, dead pixel solid 8 warna, motor getar haptic, dan diagnosa AI Grok 4.6 secara real-time langsung di browser.',
-  keywords = 'device doctor, cek hp, tes layar sentuh, cek dead pixel, cek getar hp, spesifikasi hp online, cek isp ip publik, uji hardware smartphone, web diagnostics, grok ai hardware doctor, benchmark hp browser',
+  description = 'Platform inspeksi mendalam hardware smartphone, deteksi IP/ISP, uji layar sentuh edge-to-edge, dead pixel solid 8 warna, motor getar haptic, dan diagnosa AI secara real-time langsung di browser.',
+  keywords = 'device doctor, cek hp, tes layar sentuh, cek dead pixel, cek getar hp, spesifikasi hp online, cek isp ip publik, uji hardware smartphone, web diagnostics, ai hardware doctor, benchmark hp browser',
   image = 'https://device-doctor.abiding-warlock.workers.dev/icons/icon-512.png',
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://device-doctor.abiding-warlock.workers.dev');
 
-// Schema.org JSON-LD untuk WebApplication, SoftwareApplication & AI Agent Geo-Awareness
+// Schema.org JSON-LD
 const structuredData = {
   "@context": "https://schema.org",
   "@graph": [
@@ -45,7 +44,7 @@ const structuredData = {
         "Uji Speaker Stereo Kiri & Kanan Terpisah",
         "Uji Multi-Pattern Vibration Motor (Haptics API)",
         "Peta Interaktif OpenStreetMap & Presisi Satelit GPS",
-        "Analisis Medis Perangkat & Chatbot AI Grok 4.6"
+        "Analisis Medis Perangkat & Konsultasi Chatbot AI Cerdas"
       ],
       "inLanguage": "id-ID",
       "author": {
@@ -124,27 +123,34 @@ const structuredData = {
   </head>
 
   <body class="min-h-dvh bg-background font-sans text-foreground antialiased selection:bg-main selection:text-black">
-    <div class="mx-auto flex min-h-dvh max-w-xl flex-col border-x-0 sm:border-x-[3px] border-border bg-card shadow-2xl relative pb-20">
+    <!-- Outer Container yang Responsif: Ramping di Mobile, Lebar & Nyaman di Desktop (max-w-4xl) -->
+    <div class="mx-auto flex min-h-dvh w-full max-w-md md:max-w-3xl lg:max-w-4xl flex-col border-x-0 md:border-x-[3px] border-border bg-card shadow-2xl relative pb-24 transition-all duration-200">
+      
       <!-- App Header -->
       <header class="sticky top-0 z-30 flex items-center justify-between border-b-[3px] border-border bg-main px-4 py-3 shadow-sm">
-        <div class="flex items-center gap-2.5">
-          <div class="flex items-center justify-center w-8 h-8 rounded-base bg-card border-2 border-border shadow-xs">
-            <Stethoscope className="w-5 h-5 text-primary" />
+        <div class="flex items-center gap-3">
+          <!-- Logo Stethoscope SVG Raw Inline (Anti-Gagal 100% Selalu Muncul) -->
+          <div class="flex items-center justify-center w-9 h-9 rounded-base bg-card border-2 border-border shadow-xs shrink-0">
+            <svg class="w-5 h-5 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
+              <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/>
+              <circle cx="20" cy="10" r="2"/>
+            </svg>
           </div>
           <div>
-            <h1 class="font-heading text-base font-extrabold leading-none tracking-tight text-black">Device Doctor</h1>
-            <p class="text-[11px] font-bold text-black/70 mt-0.5">Mobile Hardware Diagnostics & AI Lab</p>
+            <h1 class="font-heading text-base md:text-lg font-black leading-none tracking-tight text-foreground">Device Doctor</h1>
+            <p class="text-[11px] font-bold text-foreground/75 mt-0.5">Mobile Hardware Diagnostics & AI Lab</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <span id="net-status" class="dd-btn px-2.5 py-1 font-data text-xs bg-healthy font-bold">
+          <span id="net-status" class="dd-btn px-3 py-1 font-data text-xs bg-healthy font-bold">
             Online
           </span>
         </div>
       </header>
 
       <!-- Main Content Area -->
-      <main class="flex-1 p-3.5 sm:p-4">
+      <main class="flex-1 p-3.5 sm:p-5 md:p-6">
         <slot />
       </main>
 

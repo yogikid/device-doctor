@@ -10,52 +10,42 @@ interface NavProps {
   currentPath: string;
 }
 
-export default function BottomNav({ currentPath: initialPath }: NavProps) {
-  const [currentPath, setCurrentPath] = useState(initialPath);
+export default function BottomNav({ currentPath }: NavProps) {
+  const [active, setActive] = useState(currentPath);
 
   useEffect(() => {
-    // Sinkronkan state saat URL berubah via Astro ClientRouter (View Transitions)
-    const updatePath = () => {
-      const p = window.location.pathname.replace(/\/$/, '') || '/';
-      setCurrentPath(p);
-    };
-
-    updatePath();
-    document.addEventListener('astro:page-load', updatePath);
-    return () => {
-      document.removeEventListener('astro:page-load', updatePath);
-    };
+    setActive(window.location.pathname);
+    const onPageLoad = () => setActive(window.location.pathname);
+    document.addEventListener('astro:page-load', onPageLoad);
+    return () => document.removeEventListener('astro:page-load', onPageLoad);
   }, []);
 
   const links = [
-    { href: '/', label: 'Spesifikasi', icon: Info, path: '/' },
-    { href: '/periksa', label: 'Periksa', icon: Activity, path: '/periksa' },
-    { href: '/lokasi', label: 'Peta & GPS', icon: MapPin, path: '/lokasi' },
-    { href: '/ringkasan', label: 'Ringkasan & AI', icon: Sparkles, path: '/ringkasan' },
+    { href: '/', label: 'Spesifikasi', icon: Info },
+    { href: '/periksa', label: 'Periksa', icon: Activity },
+    { href: '/lokasi', label: 'Peta & GPS', icon: MapPin },
+    { href: '/ringkasan', label: 'Ringkasan & AI', icon: Sparkles },
   ];
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 bg-card border-t-[3px] border-border pb-safe">
-      <div className="max-w-2xl mx-auto flex items-center justify-around px-2 py-2">
+    <nav aria-label="Navigasi Utama" className="fixed bottom-0 inset-x-0 z-40 bg-card border-t-[3px] border-border shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+      <div className="mx-auto flex max-w-md md:max-w-3xl lg:max-w-4xl justify-around items-center px-2 py-2">
         {links.map((link) => {
           const Icon = link.icon;
-          // Normalisasi path agar cocok baik dengan /periksa maupun /periksa/
-          const normCurrent = currentPath.replace(/\/$/, '') || '/';
-          const normLink = link.path.replace(/\/$/, '') || '/';
-          const isActive = normCurrent === normLink;
+          const isActive = active === link.href || (link.href !== '/' && active.startsWith(link.href));
           
           return (
             <a
               key={link.href}
               href={link.href}
-              className={`flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-base transition-all ${
+              className={`flex flex-col items-center justify-center gap-1 py-1.5 px-2.5 sm:px-4 rounded-base border-2 transition-all select-none ${
                 isActive
-                  ? 'bg-main text-black font-extrabold shadow-[3px_3px_0_0_var(--border)] border-2 border-border translate-y-[-2px]'
-                  : 'text-muted-foreground hover:text-black font-semibold hover:bg-secondary-background'
+                  ? 'bg-main text-foreground border-border font-extrabold shadow-xs translate-y-[-2px]'
+                  : 'bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary-background'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
-              <span className="text-[11px] leading-none tracking-tight">{link.label}</span>
+              <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isActive ? 'text-foreground stroke-[2.5]' : 'text-muted-foreground stroke-[2]'}`} />
+              <span className="text-[10px] sm:text-xs tracking-tight whitespace-nowrap">{link.label}</span>
             </a>
           );
         })}

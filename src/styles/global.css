@@ -410,6 +410,63 @@ body::before {
   }
 }
 
+/* ---------- Formatted Markdown Styling in AI boxes ---------- */
+.ai-formatted {
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.ai-formatted h1, .ai-formatted h2 {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 800;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid color-mix(in srgb, var(--border) 25%, transparent);
+  color: var(--foreground);
+}
+.ai-formatted h3, .ai-formatted h4 {
+  font-family: var(--font-heading);
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-top: 0.75rem;
+  margin-bottom: 0.3rem;
+  color: var(--foreground);
+}
+.ai-formatted p {
+  margin-top: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+.ai-formatted ul {
+  list-style-type: disc;
+  margin-left: 1.25rem;
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+.ai-formatted ol {
+  list-style-type: decimal;
+  margin-left: 1.25rem;
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+.ai-formatted li {
+  margin-top: 0.15rem;
+  margin-bottom: 0.15rem;
+}
+.ai-formatted strong, .ai-formatted b {
+  font-weight: 800;
+  color: var(--foreground);
+}
+.ai-formatted code {
+  font-family: var(--font-mono);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.3rem;
+  border-radius: 2px;
+  font-size: 0.75rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
